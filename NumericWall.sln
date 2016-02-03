@@ -1,0 +1,23 @@
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2008
+
+Project("{DF774B6D-64DE-7316-E3BD-4981D64D8FCF}") = "NumericWall", "Assembly-CSharp.csproj", "{D8184394-8191-9E2E-4679-21E6EB2D27DE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D8184394-8191-9E2E-4679-21E6EB2D27DE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D8184394-8191-9E2E-4679-21E6EB2D27DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D8184394-8191-9E2E-4679-21E6EB2D27DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D8184394-8191-9E2E-4679-21E6EB2D27DE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(MonoDevelopProperties) = preSolution
+		StartupItem = Assembly-CSharp.csproj
+	EndGlobalSection
+EndGlobal
