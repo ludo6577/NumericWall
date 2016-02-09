@@ -9,6 +9,10 @@ public class WallScript : MonoBehaviour {
 
 	public DraggableObject ObjectPrefab;
 	public int MaxObject;
+	[Range(0, 10)]
+	public float InitialVelocity;
+	[Range(50, 1000)]
+	public int InitialRange;
 
 	private static string MediaPath = "Pictures";
 	private List<DraggableObject> draggableObjects;
@@ -21,12 +25,24 @@ public class WallScript : MonoBehaviour {
 		foreach (var sprite in sprites) {
 			if (draggableObjects.Count >= MaxObject)
 				break;
-			
-			Vector2 position = new Vector2 (Random.Range(0,rect.sizeDelta.x), Random.Range(0,rect.sizeDelta.y));
 
-			var obj = (DraggableObject) Instantiate(ObjectPrefab, position, transform.rotation);
+			float posX = 0f;
+			float posY = 0f;
+			while(posX>=0f && posX<=rect.sizeDelta.x && posY>=0f && posY<=rect.sizeDelta.y){
+				posX = Random.Range(-InitialRange, rect.sizeDelta.x + InitialRange);
+				posY = Random.Range(-InitialRange, rect.sizeDelta.y + InitialRange);
+			}
+
+
+			Vector2 initialPosition = new Vector2 (posX, posY);
+
+			Vector2 center = new Vector2 (rect.sizeDelta.x/2, rect.sizeDelta.y/2);
+			Vector2 initialSpeed = center - initialPosition;
+
+			var obj = (DraggableObject) Instantiate(ObjectPrefab, initialPosition, transform.rotation);
 			obj.transform.SetParent(transform, false);
-			obj.SetLayer (Random.Range (1, 3));
+			obj.SetLayer (Random.Range (2, 5));
+			obj.Move (initialSpeed * (InitialVelocity/100));
 			obj.SetImage (sprite);
 
 			draggableObjects.Add (obj);
@@ -62,6 +78,7 @@ public class WallScript : MonoBehaviour {
 			}
 		}
 
+		// Calls the Touch method for each touched objects
 		foreach (var gameObject in gameObjectsHitted.Keys) {
 			var draggableObject = gameObject.GetComponent<DraggableObject> ();
 			if (draggableObject != null) {
@@ -71,7 +88,5 @@ public class WallScript : MonoBehaviour {
 				draggableObject.Touch (hitCount, hitOne, hitTwo); 
 			}
 		}
-
-
 	}
 }

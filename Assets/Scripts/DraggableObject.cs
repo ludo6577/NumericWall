@@ -19,11 +19,28 @@ public class DraggableObject : MonoBehaviour {
 	public float Inertia = 10f;
 	//public float ZoomSpeed = 0.5f;        // The rate of change of the field of view in perspective mode.
 
+	private static int MAX_LAYER = 5;
+
 	/*
 	 *	Object components 
 	 */
-	private Rigidbody2D rigidBody;
-	private RectTransform rectTransf;
+	private Rigidbody2D _rigidBody;
+	private Rigidbody2D RigidBody{
+		get{ 
+			if(_rigidBody == null)
+				_rigidBody = GetComponent<Rigidbody2D> ();
+			return _rigidBody; 
+		}
+	}
+		
+	private RectTransform _rectTransform;
+	private RectTransform RectTransform{
+		get{ 
+			if(_rectTransform == null)
+				_rectTransform = GetComponent<RectTransform> ();
+			return _rectTransform; 
+		}
+	}
 
 	/*
 	 * 	Touchs
@@ -46,9 +63,6 @@ public class DraggableObject : MonoBehaviour {
 
 
 	public void Start(){
-		rigidBody = GetComponent<Rigidbody2D> ();
-		rectTransf = GetComponent<RectTransform> ();
-
 		touchCount = 0;
 		previousTouchPosition = Vector2.zero;
 		previousTouchTime = 0f;
@@ -67,18 +81,26 @@ public class DraggableObject : MonoBehaviour {
 		this.touchPositionOne = touchPositionOne;
 	}
 
+	public void Move(Vector2 direction){
+		RigidBody.velocity = direction * Time.deltaTime * Inertia * 100;
+		RigidBody.AddRelativeForce( direction * Time.deltaTime * Inertia * 100, ForceMode2D.Impulse);
+	}
+
 	public void SetLayer(int layerNumber){
 		if (fullScreen)
 			return;
-		
+
+		var layernumber = LayerMask.NameToLayer("Layer" + layerNumber);
+		gameObject.layer = layernumber >= 0 ? layernumber : MAX_LAYER;
+
 		if(layerNumber==0)
 			transform.SetAsLastSibling();
-		else
-			transform.SetSiblingIndex(10 - layerNumber);
+		//else
+		//	transform.SetSiblingIndex(10 - layerNumber);
 		transform.position = new Vector3(transform.position.x, transform.position.y, layerNumber * 10);
 		destinationScale = new Vector2(1/( 1 + (layerNumber * ScaleFactor)), 1/( 1 + (layerNumber * ScaleFactor)));
 	}
-
+		
 	public void Update()
 	{
 		// Update size / position
@@ -94,11 +116,10 @@ public class DraggableObject : MonoBehaviour {
 			SetLayer (1);
 
 			var deltaTouch = touchPositionZero - previousTouchPosition;
-			rigidBody.velocity = deltaTouch * Time.deltaTime * Inertia * 100;
-			rigidBody.AddRelativeForce( deltaTouch * Time.deltaTime * Inertia * 100, ForceMode2D.Impulse);
+			Move(deltaTouch);
 
 			dragged = false;
-			rigidBody.isKinematic = false;
+			RigidBody.isKinematic = false;
 			previousTouchPosition = Vector2.zero;
 			return;
 		}
@@ -106,7 +127,7 @@ public class DraggableObject : MonoBehaviour {
 		// New touch
 		if (!dragged) {
 			dragged = true;
-			rigidBody.isKinematic = true;
+			RigidBody.isKinematic = true;
 			touchPositionToCenter = new Vector2(transform.position.x - touchPositionZero.x, transform.position.y - touchPositionZero.y);
 			SetLayer (0);
 
