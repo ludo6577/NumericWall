@@ -1,14 +1,18 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
+using TouchScript;
+using TouchScript.Utils;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 
 
 public class WallScript : MonoBehaviour {
-
+	
 	public DraggableObject ObjectPrefab;
 	public int MaxObject;
+	[Range(1, 7)]
+	public int LayersCount;
 	[Range(0, 10)]
 	public float InitialVelocity;
 	[Range(50, 1000)]
@@ -16,6 +20,7 @@ public class WallScript : MonoBehaviour {
 
 	private static string MediaPath = "Pictures";
 	private List<DraggableObject> draggableObjects;
+	private Dictionary<int, DraggableObject> objectByTouchId = new Dictionary<int, DraggableObject>(10);
 
 	void Start () {
 		draggableObjects = new List<DraggableObject> ();
@@ -41,16 +46,112 @@ public class WallScript : MonoBehaviour {
 
 			var obj = (DraggableObject) Instantiate(ObjectPrefab, initialPosition, transform.rotation);
 			obj.transform.SetParent(transform, false);
-			obj.SetLayer (Random.Range (2, 5));
 			obj.Move (initialSpeed * (InitialVelocity/100));
 			obj.SetImage (sprite);
+			obj.Wall = this;
 
 			draggableObjects.Add (obj);
+		}
+
+		this.UpdateLayers ();
+	}
+
+	public void UpdateLayers(){
+		foreach (var obj in draggableObjects) {
+			var index = obj.transform.GetSiblingIndex ();
+			var length = draggableObjects.Count;
+
+			if(length <= 1)
+				return;
+
+			var layerIndex = LayersCount - (int)(index*LayersCount) / (length-1);
+
+			if (obj.Layer != layerIndex)
+				obj.SetLayer (layerIndex);
 		}
 	}
 
 
 
+	private void OnEnable()
+	{
+		if (TouchManager.Instance != null)
+		{
+			TouchManager.Instance.TouchesBegan += touchesBeganHandler;
+			TouchManager.Instance.TouchesEnded += touchesEndedHandler;
+			TouchManager.Instance.TouchesMoved += touchesMovedHandler;
+			TouchManager.Instance.TouchesCancelled += touchesCancelledHandler;
+		}
+	}
+
+	private void OnDisable()
+	{
+		if (TouchManager.Instance != null)
+		{
+			TouchManager.Instance.TouchesBegan -= touchesBeganHandler;
+			TouchManager.Instance.TouchesEnded -= touchesEndedHandler;
+			TouchManager.Instance.TouchesMoved -= touchesMovedHandler;
+			TouchManager.Instance.TouchesCancelled -= touchesCancelledHandler;
+		}
+	}
+
+
+	#region Event handlers
+
+	private void touchesBeganHandler(object sender, TouchEventArgs e)
+	{
+		var count = e.Touches.Count;
+		for (var i = 0; i < count; i++) {
+			var touch = e.Touches[i];
+
+			RaycastHit2D hit = Physics2D.Raycast (touch.Position, Vector2.zero);
+			if ((hit != null) &&  (hit.collider!=null) && (hit.collider.gameObject!=null)) {
+				var gameObject = hit.collider.gameObject.GetComponent<DraggableObject> ();
+				if(gameObject!=null)
+					objectByTouchId.Add (touch.Id, gameObject);
+			}
+		}
+	}
+
+	private void touchesMovedHandler(object sender, TouchEventArgs e)
+	{
+		var gameObjects = new List<DraggableObject> ();
+		var count = e.Touches.Count;
+		for (var i = 0; i < count; i++)
+		{
+			var touch = e.Touches[i];
+			DraggableObject obj = null;
+			if (objectByTouchId.TryGetValue(touch.Id, out obj)) {
+				gameObjects.Add (obj);
+				obj.TouchsPoints.Add (touch);
+			}
+		}
+
+		foreach (var obj in gameObjects) {
+			obj.Compute ();
+		}
+	}
+
+	private void touchesEndedHandler(object sender, TouchEventArgs e)
+	{
+		var count = e.Touches.Count;
+		for (var i = 0; i < count; i++) {
+			var touch = e.Touches[i];
+			objectByTouchId.Remove(touch.Id);
+		}
+	}
+
+	private void touchesCancelledHandler(object sender, TouchEventArgs e)
+	{
+		touchesEndedHandler(sender, e);
+	}
+
+	#endregion
+
+
+	/*
+	 * 			### OLD METHOD ###
+	 * 
 	void Update () {
 		List<Vector2> touchPositions = new List<Vector2> ();
 
@@ -89,4 +190,5 @@ public class WallScript : MonoBehaviour {
 			}
 		}
 	}
+	*/
 }

@@ -19,3 +19,5 @@ C:\DEV\PERSO\NumericWall\Temp\bin\Debug\UnityEngine.Networking.xml
 C:\DEV\PERSO\NumericWall\obj\Debug\Assembly-CSharp.csprojResolveAssemblyReference.cache
 C:\DEV\PERSO\NumericWall\obj\Debug\Assembly-CSharp.dll
 C:\DEV\PERSO\NumericWall\obj\Debug\Assembly-CSharp.pdb
+C:\DEV\PERSO\NumericWall\Temp\bin\Debug\OSCsharp.dll
+C:\DEV\PERSO\NumericWall\Temp\bin\Debug\TUIOsharp.dll
