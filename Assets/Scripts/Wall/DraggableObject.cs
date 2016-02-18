@@ -59,18 +59,41 @@ public class DraggableObject : MonoBehaviour {
 	/*
 	 * 	private
 	 */
-	private bool dragged;
 	private bool fullScreen;
-	private Vector2 previousTouchPosition;
+	private Vector2 lastTouchPosition;
 
 
+
+
+	/*
+	 * 	Start / Update
+	 */
 	public void Start(){
-		TouchsPoints = new List<TouchPoint>();
-		previousTouchPosition = Vector2.zero;
-		dragged = false;
-		fullScreen = false;
 	}
 
+	public void Update(){
+		if (Wall == null)
+			return;
+		
+		// Goes out
+		if (RectTransform.anchoredPosition.x < 0 
+			|| RectTransform.anchoredPosition.y < 0 
+			|| RectTransform.anchoredPosition.x > Wall.RectTransform.sizeDelta.x 
+			|| RectTransform.anchoredPosition.y > Wall.RectTransform.sizeDelta.y) {
+
+			Vector2 initialPosition = new Vector2 (RectTransform.anchoredPosition.x , RectTransform.anchoredPosition.y);
+			Vector2 center = new Vector2 (Wall.RectTransform.sizeDelta.x / 2, Wall.RectTransform.sizeDelta.y / 2);
+			Vector2 direction = center - initialPosition;
+			Move (direction/10);
+		}
+	}
+
+
+
+
+	/*
+	 * 	EVENTS
+	 */
 	private void OnEnable()
 	{
 		GetComponent<TapGesture>().Tapped += tappedHandler;
@@ -85,27 +108,39 @@ public class DraggableObject : MonoBehaviour {
 		GetComponent<TapGesture>().Tapped -= tappedHandler;
 	}
 
-	public void Update(){
-		if (Wall == null)
-			return;
-		
-		// Goes out
-		if (RectTransform.anchoredPosition.x < 0 
-			|| RectTransform.anchoredPosition.y < 0 
-			|| RectTransform.anchoredPosition.x > 1920 
-			|| RectTransform.anchoredPosition.y > 1080) {
-
-			Vector2 initialPosition = new Vector2 (RectTransform.anchoredPosition.x , RectTransform.anchoredPosition.y);
-			Vector2 center = new Vector2 (1920 / 2, 1080 / 2);
-			Vector2 direction = center - initialPosition;
-			Move (direction/10);
-		}
-
-
-		// Update size
-		//if ((fullScreen && transform.localScale.x < destinationScale.x - 0.001f) || (!fullScreen && transform.localScale.x > destinationScale.x + 0.001f))
-		//	transform.localScale = Vector2.Lerp (transform.localScale, destinationScale, ScaleSpeed * Time.deltaTime);
+	private void transformedHandler(object sender, EventArgs e)
+	{
+		Dragged = true;
+		SetLayer (0);
+		RigidBody.isKinematic = true;
 	}
+
+	private void transformCompletedhandler(object sender, EventArgs e)
+	{
+		Dragged = false;
+		RigidBody.isKinematic = false;
+		var gesture = (TransformGesture)sender;
+		Move (gesture.DeltaPosition * 4);
+	}
+
+	private void tappedHandler(object sender, EventArgs e)
+	{
+		//TODO
+		/*
+		fullScreen = !fullScreen;
+		if (fullScreen) {
+			//SetLayer (0);
+			previousScale = transform.localScale;
+			var scale = Camera.main.orthographicSize / 2;
+			destinationScale = new Vector2(scale, scale);
+		}
+		else {
+			destinationScale = previousScale;
+		}
+		*/
+	}
+
+
 
 
 	public void SetImage(Sprite sprite){
@@ -130,7 +165,7 @@ public class DraggableObject : MonoBehaviour {
 
 	public void Move(Vector2 direction){
 		RigidBody.velocity = direction * Time.deltaTime;
-		RigidBody.AddRelativeForce( direction * Time.deltaTime, ForceMode2D.Impulse);
+		RigidBody.AddForce( direction * Time.deltaTime, ForceMode2D.Impulse);
 	}
 
 
@@ -152,39 +187,4 @@ public class DraggableObject : MonoBehaviour {
 		//transform.position = new Vector3(transform.position.x, transform.position.y, layerNumber * 10);
 		//destinationScale = new Vector2(1/( 1 + (layerNumber * ScaleFactor)), 1/( 1 + (layerNumber * ScaleFactor)));
 	}
-
-
-
-
-
-	private void transformedHandler(object sender, EventArgs e)
-	{
-		Dragged = true;
-		SetLayer (0);
-		RigidBody.isKinematic = true;
-	}
-	private void transformCompletedhandler(object sender, EventArgs e)
-	{
-		Dragged = false;
-		RigidBody.isKinematic = false;
-	}
-
-
-	private void tappedHandler(object sender, EventArgs e)
-	{
-		//TODO
-		/*
-		fullScreen = !fullScreen;
-		if (fullScreen) {
-			//SetLayer (0);
-			previousScale = transform.localScale;
-			var scale = Camera.main.orthographicSize / 2;
-			destinationScale = new Vector2(scale, scale);
-		}
-		else {
-			destinationScale = previousScale;
-		}
-		*/
-	}
-
 }

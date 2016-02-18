@@ -20,7 +20,7 @@ public class WallScript : MonoBehaviour {
 	public int InitialRange;
 
 	private RectTransform _rectTransform;
-	private RectTransform RectTransform{
+	public RectTransform RectTransform{
 		get{ 
 			if(_rectTransform == null)
 				_rectTransform = GetComponent<RectTransform> ();
