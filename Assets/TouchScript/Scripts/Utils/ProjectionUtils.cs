@@ -39,6 +39,7 @@ namespace TouchScript.Utils
         {
             var distance = 0f;
             var ray = new Ray(position, Vector3.forward);
+			//Ray ray = Camera.main.ScreenPointToRay(position);
             var result = projectionPlane.Raycast(ray, out distance);
             if (!result && Mathf.Approximately(distance, 0f)) return -projectionPlane.normal * projectionPlane.GetDistanceToPoint(Vector3.zero); // perpendicular to the screen
 
