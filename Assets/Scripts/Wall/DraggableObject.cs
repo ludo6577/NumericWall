@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -39,23 +39,23 @@ public class DraggableObject : MonoBehaviour {
 	 *	Object components 
 	 */
 	private Rigidbody2D _rigidBody;
-	private Rigidbody2D RigidBody{
+	protected Rigidbody2D RigidBody{
 		get{ 
 			if(_rigidBody == null)
 				_rigidBody = GetComponent<Rigidbody2D> ();
 			return _rigidBody; 
 		}
 	}
-		
+
 	private RectTransform _rectTransform;
-	private RectTransform RectTransform{
+	protected RectTransform RectTransform{
 		get{ 
 			if(_rectTransform == null)
 				_rectTransform = GetComponent<RectTransform> ();
 			return _rectTransform; 
 		}
 	}
-		
+
 	/*
 	 * 	private
 	 */
@@ -74,7 +74,7 @@ public class DraggableObject : MonoBehaviour {
 	public void Update(){
 		if (Wall == null)
 			return;
-		
+
 		// Goes out
 		if (RectTransform.anchoredPosition.x < 0 
 			|| RectTransform.anchoredPosition.y < 0 
@@ -96,16 +96,16 @@ public class DraggableObject : MonoBehaviour {
 	 */
 	private void OnEnable()
 	{
-		GetComponent<TapGesture>().Tapped += tappedHandler;
 		GetComponent<TransformGesture>().Transformed += transformedHandler;
 		GetComponent<TransformGesture>().TransformCompleted += transformCompletedhandler;
+		//GetComponent<TapGesture>().Tapped += tappedHandler;
 	}
 
 	private void OnDisable()
 	{
 		GetComponent<TransformGesture> ().Transformed -= transformedHandler;
 		GetComponent<TransformGesture>().TransformCompleted -= transformCompletedhandler;
-		GetComponent<TapGesture>().Tapped -= tappedHandler;
+		//GetComponent<TapGesture>().Tapped -= tappedHandler;
 	}
 
 	private void transformedHandler(object sender, EventArgs e)
@@ -123,44 +123,7 @@ public class DraggableObject : MonoBehaviour {
 		Move (gesture.DeltaPosition * 4);
 	}
 
-	private void tappedHandler(object sender, EventArgs e)
-	{
-		//TODO
-		/*
-		fullScreen = !fullScreen;
-		if (fullScreen) {
-			//SetLayer (0);
-			previousScale = transform.localScale;
-			var scale = Camera.main.orthographicSize / 2;
-			destinationScale = new Vector2(scale, scale);
-		}
-		else {
-			destinationScale = previousScale;
-		}
-		*/
-	}
 
-
-
-
-	public void SetImage(Sprite sprite){
-		var imageObject = GetComponentInChildren<ImageObject> ();
-		imageObject.SetImage (sprite);
-
-		var collider = GetComponent<BoxCollider2D> ();
-
-		var ratioX = sprite.rect.width / sprite.rect.height;
-		var ratioY = sprite.rect.height / sprite.rect.width;
-		if (ratioX > 1) {
-			var size = new Vector2 (RectTransform.sizeDelta.x * ratioX, RectTransform.sizeDelta.y);;
-			RectTransform.sizeDelta = size;
-			collider.size = size;
-		} else {
-			var size = new Vector2 (RectTransform.sizeDelta.x, RectTransform.sizeDelta.y * ratioY);
-			RectTransform.sizeDelta = size;
-			collider.size = size;
-		}
-	}
 
 
 	public void Move(Vector2 direction){
@@ -177,7 +140,7 @@ public class DraggableObject : MonoBehaviour {
 
 		var layer = LayerMask.NameToLayer("Layer" + layerNumber);
 		gameObject.layer = layer >= 0 ? layer : Wall.LayersCount;
-		gameObject.name = Wall.ObjectPrefab.name + "(Layer: " + layerNumber +")";
+		gameObject.name = Wall.ObjectImagePrefab.name + "(Layer: " + layerNumber +")";
 
 		if (layerNumber == 0) {
 			transform.SetAsLastSibling ();

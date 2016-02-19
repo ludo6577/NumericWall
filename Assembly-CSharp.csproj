@@ -48,7 +48,9 @@
      <Compile Include="Assets\Scripts\Server\Client.cs" />
      <Compile Include="Assets\Scripts\Server\FileTransfert.cs" />
      <Compile Include="Assets\Scripts\Server\Server.cs" />
+     <Compile Include="Assets\Scripts\Wall\DraggableImageObject.cs" />
      <Compile Include="Assets\Scripts\Wall\DraggableObject.cs" />
+     <Compile Include="Assets\Scripts\Wall\DraggableVideoObject.cs" />
      <Compile Include="Assets\Scripts\Wall\ImageObject.cs" />
      <Compile Include="Assets\Scripts\Wall\WallScript.cs" />
      <Compile Include="Assets\TouchScript\Examples\Camera\Scripts\CameraController.cs" />

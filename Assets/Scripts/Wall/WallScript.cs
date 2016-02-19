@@ -10,7 +10,10 @@ using System.IO;
 
 public class WallScript : MonoBehaviour {
 	
-	public DraggableObject ObjectPrefab;
+	public DraggableImageObject ObjectImagePrefab;
+	public DraggableVideoObject ObjectVideoPrefab;
+
+
 	public int MaxObject;
 	[Range(1, 7)]
 	public int LayersCount;
@@ -29,39 +32,50 @@ public class WallScript : MonoBehaviour {
 	}
 
 	private static string MediaPath = "Pictures";
-	private List<DraggableObject> draggableObjects;
-	private Dictionary<int, DraggableObject> objectByTouchId = new Dictionary<int, DraggableObject>(10);
+	private List<DraggableImageObject> draggableObjects;
+	private Dictionary<int, DraggableImageObject> objectByTouchId = new Dictionary<int, DraggableImageObject>(10);
 
 	void Start () {
-		draggableObjects = new List<DraggableObject> ();
-		Sprite[] sprites = Resources.LoadAll<Sprite> (MediaPath);
+		draggableObjects = new List<DraggableImageObject> ();
 
+		Sprite[] sprites = Resources.LoadAll<Sprite> (MediaPath);
 		foreach (var sprite in sprites) {
 			if (draggableObjects.Count >= MaxObject)
 				break;
 
-			// TODO: ugly, but... its a poc...
-			float posX = 0f, posY = 0f;
-			while(posX>=0f && posX<=RectTransform.sizeDelta.x && posY>=0f && posY<=RectTransform.sizeDelta.y){
-				posX = Random.Range(-InitialRange, RectTransform.sizeDelta.x + InitialRange);
-				posY = Random.Range(-InitialRange, RectTransform.sizeDelta.y + InitialRange);
-			}
+			CreateNewSpriteObject (sprite);
+		}
 
-			Vector2 initialPosition = new Vector2 (posX, posY);
-			Vector2 center = new Vector2 (RectTransform.sizeDelta.x/2, RectTransform.sizeDelta.y/2);
-			Vector2 initialSpeed = center - initialPosition;
+		MovieTexture[] movies = Resources.LoadAll<MovieTexture> (MediaPath);
+		foreach (var sprite in sprites) {
+			if (draggableObjects.Count >= MaxObject)
+				break;
 
-			var obj = (DraggableObject) Instantiate(ObjectPrefab, initialPosition, transform.rotation);
-			obj.transform.SetParent(transform, false);
-			obj.Move (initialSpeed * (InitialVelocity));
-			obj.SetImage (sprite);
-			obj.Wall = this;
-			obj.Layer = -1;
-
-			draggableObjects.Add (obj);
 		}
 
 		this.UpdateLayers ();
+	}
+
+	private void CreateNewSpriteObject(Sprite sprite){
+		// TODO: ugly, but... its a poc...
+		float posX = 0f, posY = 0f;
+		while(posX>=0f && posX<=RectTransform.sizeDelta.x && posY>=0f && posY<=RectTransform.sizeDelta.y){
+			posX = Random.Range(-InitialRange, RectTransform.sizeDelta.x + InitialRange);
+			posY = Random.Range(-InitialRange, RectTransform.sizeDelta.y + InitialRange);
+		}
+
+		Vector2 initialPosition = new Vector2 (posX, posY);
+		Vector2 center = new Vector2 (RectTransform.sizeDelta.x/2, RectTransform.sizeDelta.y/2);
+		Vector2 initialSpeed = center - initialPosition;
+
+		var obj = (DraggableImageObject) Instantiate(ObjectImagePrefab, initialPosition, transform.rotation);
+		obj.transform.SetParent(transform, false);
+		obj.Move (initialSpeed * (InitialVelocity));
+		obj.SetImage (sprite);
+		obj.Wall = this;
+		obj.Layer = -1;
+
+		draggableObjects.Add (obj);
 	}
 
 	public void UpdateLayers(){
