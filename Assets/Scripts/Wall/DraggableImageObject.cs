@@ -8,7 +8,6 @@ using TouchScript;
 using TouchScript.Gestures;
 using TouchScript.Utils;
 
-[RequireComponent(typeof(Image))]
 public class DraggableImageObject : DraggableObject {
 	
 	public void SetImage(Sprite sprite){
@@ -17,10 +16,10 @@ public class DraggableImageObject : DraggableObject {
 
 		var collider = GetComponent<BoxCollider2D> ();
 
-		var ratioX = sprite.rect.width / sprite.rect.height;
-		var ratioY = sprite.rect.height / sprite.rect.width;
+		var ratioX = (float) sprite.rect.width / sprite.rect.height;
+		var ratioY = (float) sprite.rect.height / sprite.rect.width;
 		if (ratioX > 1) {
-			var size = new Vector2 (RectTransform.sizeDelta.x * ratioX, RectTransform.sizeDelta.y);;
+			var size = new Vector2 (RectTransform.sizeDelta.x * ratioX, RectTransform.sizeDelta.y);
 			RectTransform.sizeDelta = size;
 			collider.size = size;
 		} else {

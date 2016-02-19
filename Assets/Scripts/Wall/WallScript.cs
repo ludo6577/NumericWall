@@ -31,32 +31,39 @@ public class WallScript : MonoBehaviour {
 		}
 	}
 
-	private static string MediaPath = "Pictures";
-	private List<DraggableImageObject> draggableObjects;
-	private Dictionary<int, DraggableImageObject> objectByTouchId = new Dictionary<int, DraggableImageObject>(10);
+	private static string ImagesPath = "Pictures";
+	private static string VideosPath = "Videos";
+	private List<DraggableObject> draggableObjects;
 
 	void Start () {
-		draggableObjects = new List<DraggableImageObject> ();
+		draggableObjects = new List<DraggableObject> ();
 
-		Sprite[] sprites = Resources.LoadAll<Sprite> (MediaPath);
+		Sprite[] sprites = Resources.LoadAll<Sprite> (ImagesPath);
 		foreach (var sprite in sprites) {
 			if (draggableObjects.Count >= MaxObject)
 				break;
 
-			CreateNewSpriteObject (sprite);
+			var obj = CreateNewObject (ObjectImagePrefab);
+			((DraggableImageObject) obj).SetImage (sprite);
+			obj.Name = "Image";
+			draggableObjects.Add (obj);
 		}
 
-		MovieTexture[] movies = Resources.LoadAll<MovieTexture> (MediaPath);
-		foreach (var sprite in sprites) {
+		MovieTexture[] movies = Resources.LoadAll<MovieTexture> (VideosPath);
+		foreach (var movie in movies) {
 			if (draggableObjects.Count >= MaxObject)
 				break;
-
+			
+			var obj = CreateNewObject (ObjectVideoPrefab);
+			((DraggableVideoObject)obj).SetVideo (movie);
+			obj.Name = "Video";
+			draggableObjects.Add (obj);
 		}
 
 		this.UpdateLayers ();
 	}
 
-	private void CreateNewSpriteObject(Sprite sprite){
+	private DraggableObject CreateNewObject(DraggableObject prefab){
 		// TODO: ugly, but... its a poc...
 		float posX = 0f, posY = 0f;
 		while(posX>=0f && posX<=RectTransform.sizeDelta.x && posY>=0f && posY<=RectTransform.sizeDelta.y){
@@ -68,14 +75,13 @@ public class WallScript : MonoBehaviour {
 		Vector2 center = new Vector2 (RectTransform.sizeDelta.x/2, RectTransform.sizeDelta.y/2);
 		Vector2 initialSpeed = center - initialPosition;
 
-		var obj = (DraggableImageObject) Instantiate(ObjectImagePrefab, initialPosition, transform.rotation);
+		var obj = (DraggableImageObject) Instantiate(prefab, initialPosition, transform.rotation);
 		obj.transform.SetParent(transform, false);
 		obj.Move (initialSpeed * (InitialVelocity));
-		obj.SetImage (sprite);
 		obj.Wall = this;
 		obj.Layer = -1;
 
-		draggableObjects.Add (obj);
+		return obj;
 	}
 
 	public void UpdateLayers(){

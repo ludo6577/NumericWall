@@ -27,6 +27,9 @@ public class DraggableObject : MonoBehaviour {
 	public int Layer;
 
 	[HideInInspector]
+	public string Name;
+
+	[HideInInspector]
 	public WallScript Wall;
 
 	[HideInInspector]
@@ -140,7 +143,7 @@ public class DraggableObject : MonoBehaviour {
 
 		var layer = LayerMask.NameToLayer("Layer" + layerNumber);
 		gameObject.layer = layer >= 0 ? layer : Wall.LayersCount;
-		gameObject.name = Wall.ObjectImagePrefab.name + "(Layer: " + layerNumber +")";
+		gameObject.name = Name + "(Layer: " + layerNumber +")";
 
 		if (layerNumber == 0) {
 			transform.SetAsLastSibling ();

@@ -52,6 +52,7 @@
      <Compile Include="Assets\Scripts\Wall\DraggableObject.cs" />
      <Compile Include="Assets\Scripts\Wall\DraggableVideoObject.cs" />
      <Compile Include="Assets\Scripts\Wall\ImageObject.cs" />
+     <Compile Include="Assets\Scripts\Wall\VideoObject.cs" />
      <Compile Include="Assets\Scripts\Wall\WallScript.cs" />
      <Compile Include="Assets\TouchScript\Examples\Camera\Scripts\CameraController.cs" />
      <Compile Include="Assets\TouchScript\Examples\Checkers\Scripts\Board.cs" />
