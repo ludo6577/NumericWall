@@ -8,6 +8,13 @@ using TouchScript;
 using TouchScript.Gestures;
 using TouchScript.Utils;
 
+public enum ObjectState{
+	Idle = 0,	// Do nothing
+	Moving,		// Moving to designed position
+	Dragged		// Dragged by user
+}
+
+
 [RequireComponent(typeof(Image))]
 public class DraggableObject : MonoBehaviour {
 
@@ -23,20 +30,14 @@ public class DraggableObject : MonoBehaviour {
 	[Range(0, 100)]
 	public float Inertia = 10f;
 
-	[HideInInspector]
-	public int Layer;
-
-	[HideInInspector]
-	public string Name;
-
-	[HideInInspector]
-	public WallScript Wall;
-
-	[HideInInspector]
-	public List<TouchPoint> TouchsPoints;
-
-	[HideInInspector]
-	public bool Dragged;
+	/*
+	 * Private variables
+	 */ 
+	private WallScript wall;
+	private ObjectState currentState;
+	private int layer;
+	private string name;
+	private Vector2 destination;
 
 	/*
 	 *	Object components 
@@ -59,33 +60,48 @@ public class DraggableObject : MonoBehaviour {
 		}
 	}
 
-	/*
-	 * 	private
-	 */
-	private bool fullScreen;
-	private Vector2 lastTouchPosition;
-
-
-
 
 	/*
 	 * 	Start / Update
 	 */
-	public void Start(){
+	public void Init(Transform parent, WallScript wall, string name){
+		//this.Move (initialSpeed * (InitialVelocity));
+		this.transform.SetParent(parent, false);
+		this.currentState = ObjectState.Idle;
+		this.wall = wall;
+		this.layer = -1;
+		this.name = name;
 	}
 
 	public void Update(){
-		if (Wall == null)
+		if (wall == null)
 			return;
+
+		switch (currentState) {
+			case ObjectState.Idle:
+				RigidBody.isKinematic = false;
+			break;
+
+			case ObjectState.Moving:
+				RigidBody.isKinematic = true;
+				if (!wall.Grid.MoveToCell (RectTransform, destination)) {
+					currentState = ObjectState.Idle;
+				}
+			break;
+
+			case ObjectState.Dragged: 
+			break;
+			
+		}
 
 		// Goes out
 		if (RectTransform.anchoredPosition.x < 0 
 			|| RectTransform.anchoredPosition.y < 0 
-			|| RectTransform.anchoredPosition.x > Wall.RectTransform.sizeDelta.x 
-			|| RectTransform.anchoredPosition.y > Wall.RectTransform.sizeDelta.y) {
+			|| RectTransform.anchoredPosition.x > wall.RectTransform.sizeDelta.x 
+			|| RectTransform.anchoredPosition.y > wall.RectTransform.sizeDelta.y) {
 
 			Vector2 initialPosition = new Vector2 (RectTransform.anchoredPosition.x , RectTransform.anchoredPosition.y);
-			Vector2 center = new Vector2 (Wall.RectTransform.sizeDelta.x / 2, Wall.RectTransform.sizeDelta.y / 2);
+			Vector2 center = new Vector2 (wall.RectTransform.sizeDelta.x / 2, wall.RectTransform.sizeDelta.y / 2);
 			Vector2 direction = center - initialPosition;
 			Move (direction/10);
 		}
@@ -101,27 +117,25 @@ public class DraggableObject : MonoBehaviour {
 	{
 		GetComponent<TransformGesture>().Transformed += transformedHandler;
 		GetComponent<TransformGesture>().TransformCompleted += transformCompletedhandler;
-		//GetComponent<TapGesture>().Tapped += tappedHandler;
 	}
 
 	private void OnDisable()
 	{
 		GetComponent<TransformGesture> ().Transformed -= transformedHandler;
 		GetComponent<TransformGesture>().TransformCompleted -= transformCompletedhandler;
-		//GetComponent<TapGesture>().Tapped -= tappedHandler;
 	}
 
 	private void transformedHandler(object sender, EventArgs e)
 	{
-		Dragged = true;
-		SetLayer (0);
 		RigidBody.isKinematic = true;
+		currentState = ObjectState.Dragged;
+		SetLayer (0);
 	}
 
 	private void transformCompletedhandler(object sender, EventArgs e)
 	{
-		Dragged = false;
 		RigidBody.isKinematic = false;
+		currentState = ObjectState.Idle;
 		var gesture = (TransformGesture)sender;
 		Move (gesture.DeltaPosition * 4);
 	}
@@ -136,21 +150,25 @@ public class DraggableObject : MonoBehaviour {
 
 
 	public void SetLayer(int layerNumber){
-		if (fullScreen)
+		if (this.layer == layerNumber)
 			return;
+		
+		layer = layerNumber;
 
-		Layer = layerNumber;
-
-		var layer = LayerMask.NameToLayer("Layer" + layerNumber);
-		gameObject.layer = layer >= 0 ? layer : Wall.LayersCount;
-		gameObject.name = Name + "(Layer: " + layerNumber +")";
+		var unityLayer = LayerMask.NameToLayer("Layer" + layerNumber);
+		gameObject.layer = unityLayer >= 0 ? unityLayer : wall.LayersCount + 7;
+		gameObject.name = name + "(Layer: " + layerNumber +")";
 
 		if (layerNumber == 0) {
 			transform.SetAsLastSibling ();
-			Wall.UpdateLayers ();
+			wall.UpdateLayers ();
 		}
 
-		//transform.position = new Vector3(transform.position.x, transform.position.y, layerNumber * 10);
-		//destinationScale = new Vector2(1/( 1 + (layerNumber * ScaleFactor)), 1/( 1 + (layerNumber * ScaleFactor)));
+		transform.localPosition = new Vector3(transform.localPosition.x, transform.localPosition.y, layerNumber * 10 - (wall.LayersCount * 10));
+	}
+
+	public void SetGridPosition(Vector2 pos){
+		destination = pos;
+		currentState = ObjectState.Moving;
 	}
 }

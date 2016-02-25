@@ -13,6 +13,7 @@ public class WallScript : MonoBehaviour {
 	public DraggableImageObject ObjectImagePrefab;
 	public DraggableVideoObject ObjectVideoPrefab;
 
+	public GridLayout Grid;
 
 	public int MaxObject;
 	[Range(1, 7)]
@@ -40,12 +41,11 @@ public class WallScript : MonoBehaviour {
 
 		Sprite[] sprites = Resources.LoadAll<Sprite> (ImagesPath);
 		foreach (var sprite in sprites) {
-			if (draggableObjects.Count >= MaxObject)
+			if (draggableObjects.Count >= MaxObject/2)
 				break;
 
-			var obj = CreateNewObject (ObjectImagePrefab);
+			var obj = CreateNewObject (ObjectImagePrefab, "Image");
 			((DraggableImageObject) obj).SetImage (sprite);
-			obj.Name = "Image";
 			draggableObjects.Add (obj);
 		}
 
@@ -54,16 +54,21 @@ public class WallScript : MonoBehaviour {
 			if (draggableObjects.Count >= MaxObject)
 				break;
 			
-			var obj = CreateNewObject (ObjectVideoPrefab);
+			var obj = CreateNewObject (ObjectVideoPrefab, "Video");
 			((DraggableVideoObject)obj).SetVideo (movie);
-			obj.Name = "Video";
 			draggableObjects.Add (obj);
 		}
 
 		this.UpdateLayers ();
+		this.UpdateMove (true);
 	}
 
-	private DraggableObject CreateNewObject(DraggableObject prefab){
+	void Update(){
+		this.UpdateMove (false);
+	}
+
+
+	private DraggableObject CreateNewObject(DraggableObject prefab, string name){
 		// TODO: ugly, but... its a poc...
 		float posX = 0f, posY = 0f;
 		while(posX>=0f && posX<=RectTransform.sizeDelta.x && posY>=0f && posY<=RectTransform.sizeDelta.y){
@@ -76,13 +81,10 @@ public class WallScript : MonoBehaviour {
 		Vector2 initialSpeed = center - initialPosition;
 
 		var obj = (DraggableImageObject) Instantiate(prefab, initialPosition, transform.rotation);
-		obj.transform.SetParent(transform, false);
-		obj.Move (initialSpeed * (InitialVelocity));
-		obj.Wall = this;
-		obj.Layer = -1;
-
+		obj.Init (transform, this, name); 
 		return obj;
 	}
+
 
 	public void UpdateLayers(){
 		foreach (var obj in draggableObjects) {
@@ -93,10 +95,28 @@ public class WallScript : MonoBehaviour {
 				return;
 
 			var layerIndex = LayersCount - (int)(index*LayersCount) / (length-1);
-			layerIndex = (layerIndex == 0 && index != length) ? 1 : layerIndex; //Only last element on layer 0
+			layerIndex = (layerIndex == 0 && index != length-1) ? 1 : layerIndex; //Only last element on layer 0
+			obj.SetLayer (layerIndex);
+		}
+	}
 
-			if (obj.Layer != layerIndex)
-				obj.SetLayer (layerIndex);
+
+	public void UpdateMove(bool updateAll){
+		var minGrid = 4;
+		var maxGridX = Grid.GridCellX - 4;
+		var maxGridY = Grid.GridCellY - 4;
+
+		if (updateAll || Random.Range (0, 100) == 0) {
+			if (updateAll) {
+				foreach (var obj in draggableObjects) {
+					var pos = new Vector2 (Random.Range (minGrid, maxGridX), Random.Range (minGrid, maxGridY));
+					obj.SetGridPosition (pos);
+				}
+			} else {
+				var obj = draggableObjects [Random.Range (0, draggableObjects.Count - 1)];
+				var pos = new Vector2 (Random.Range (minGrid, maxGridX), Random.Range (minGrid, maxGridY));
+				obj.SetGridPosition(pos);
+			}
 		}
 	}
 }
