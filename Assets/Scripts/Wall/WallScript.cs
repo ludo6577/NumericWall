@@ -15,15 +15,20 @@ public class WallScript : MonoBehaviour {
 
 	public GridLayout Grid;
 
-	public int MaxObject;
-	[Range(1, 7)]
+	public int MaxImages;
+    public int MaxVideos;
+
+    [Range(1, 7)]
 	public int LayersCount;
 	[Range(0, 10)]
 	public float InitialVelocity;
 	[Range(50, 1000)]
 	public int InitialRange;
+    [Range(50, 10000)]
+    public int MovingProbabilty;
 
-	private RectTransform _rectTransform;
+
+    private RectTransform _rectTransform;
 	public RectTransform RectTransform{
 		get{ 
 			if(_rectTransform == null)
@@ -41,7 +46,7 @@ public class WallScript : MonoBehaviour {
 
 		Sprite[] sprites = Resources.LoadAll<Sprite> (ImagesPath);
 		foreach (var sprite in sprites) {
-			if (draggableObjects.Count >= MaxObject/2)
+			if (draggableObjects.Count >= MaxImages)
 				break;
 
 			var obj = CreateNewObject (ObjectImagePrefab, "Image");
@@ -49,9 +54,10 @@ public class WallScript : MonoBehaviour {
 			draggableObjects.Add (obj);
 		}
 
-		MovieTexture[] movies = Resources.LoadAll<MovieTexture> (VideosPath);
+	    var imageCount = draggableObjects.Count;
+        MovieTexture[] movies = Resources.LoadAll<MovieTexture> (VideosPath);
 		foreach (var movie in movies) {
-			if (draggableObjects.Count >= MaxObject)
+			if (draggableObjects.Count - imageCount >= MaxVideos)
 				break;
 			
 			var obj = CreateNewObject (ObjectVideoPrefab, "Video");
@@ -80,7 +86,7 @@ public class WallScript : MonoBehaviour {
 		Vector2 center = new Vector2 (RectTransform.sizeDelta.x/2, RectTransform.sizeDelta.y/2);
 		Vector2 initialSpeed = center - initialPosition;
 
-		var obj = (DraggableImageObject) Instantiate(prefab, initialPosition, transform.rotation);
+		var obj = (DraggableObject) Instantiate(prefab, initialPosition, transform.rotation);
 		obj.Init (transform, this, name); 
 		return obj;
 	}
@@ -94,29 +100,26 @@ public class WallScript : MonoBehaviour {
 			if(length <= 1)
 				return;
 
-			var layerIndex = LayersCount - (int)(index*LayersCount) / (length-1);
-			layerIndex = (layerIndex == 0 && index != length-1) ? 1 : layerIndex; //Only last element on layer 0
+			var layerIndex = (int)(LayersCount - (((float)index / (float)(length-1)) * LayersCount));
+			layerIndex = (layerIndex <= 0 && index != length-1) ? 1 : layerIndex; //Only last element on layer 0
 			obj.SetLayer (layerIndex);
 		}
 	}
 
 
 	public void UpdateMove(bool updateAll){
-		var minGrid = 4;
-		var maxGridX = Grid.GridCellX - 4;
-		var maxGridY = Grid.GridCellY - 4;
-
-		if (updateAll || Random.Range (0, 100) == 0) {
-			if (updateAll) {
-				foreach (var obj in draggableObjects) {
-					var pos = new Vector2 (Random.Range (minGrid, maxGridX), Random.Range (minGrid, maxGridY));
-					obj.SetGridPosition (pos);
-				}
-			} else {
+        if (updateAll)
+        {
+            foreach (var obj in draggableObjects)
+            {
+                var pos = new Vector2(Random.Range(0, Grid.NbCellsX), Random.Range(0, Grid.NbCellsY));
+                obj.SetGridPosition(pos);
+            }
+        }
+        else if (Random.Range (0, MovingProbabilty) == 0) {
 				var obj = draggableObjects [Random.Range (0, draggableObjects.Count - 1)];
-				var pos = new Vector2 (Random.Range (minGrid, maxGridX), Random.Range (minGrid, maxGridY));
+				var pos = new Vector2 (Random.Range (0, Grid.NbCellsX), Random.Range (0, Grid.NbCellsY));
 				obj.SetGridPosition(pos);
-			}
 		}
 	}
 }

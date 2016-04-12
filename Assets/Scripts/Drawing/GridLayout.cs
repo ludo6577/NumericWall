@@ -5,41 +5,55 @@ using System.Collections.Generic;
 
 public class GridLayout : MonoBehaviour {
 
-	[Range(1, 1000)]
-	public float Width = 10f;
-	[Range(1, 1000)]
-	public float Height = 10f;
+	[Range(1, 100)]
+	public int NbCellsX = 10;
+	[Range(1, 100)]
+	public int NbCellsY = 10;
+
+	[Range(1, 300)]
+	public float MargeX = 50f;
+	[Range(1, 300)]
+	public float MargeY = 50f;
+
 	[Range(0.01f, 1000)]
 	public float Speed = 10f;
 
-	[HideInInspector]
-	public int GridCellX = 0;
-	[HideInInspector]
-	public int GridCellY = 0;
-
+	//Design
 	public bool DrawGrid;
 	public bool DrawMovement;
-
 	public float LineWidth = 1;
 
 	public new List <Vector2[]> MovingLine;
 
 	private WallScript Wall;
 
+
 	void Start(){
 		Wall = GetComponent<WallScript> ();
 		MovingLine = new List <Vector2[]> ();
-
-		GridCellX = (int)(Wall.RectTransform.sizeDelta.x / Width);
-		GridCellY = (int)(Wall.RectTransform.sizeDelta.y / Height);
 	}
 
+	public float GetCellsWidth(){
+		var screenSize = Wall.RectTransform.sizeDelta;
+		return (screenSize.x - (MargeX*2)) / NbCellsX;
+	}
+
+	public float GetCellsHeight(){
+		var screenSize = Wall.RectTransform.sizeDelta;
+		return (screenSize.y - (MargeY*2)) / NbCellsY;
+	}
+
+	public Vector2 GetCellPosition(Vector2 gridCell){
+		var cellWidth = GetCellsWidth ();
+		var cellHeight = GetCellsHeight ();
+		var posX = MargeX + ((gridCell.x + 1) * cellWidth) - (cellWidth / 2);
+		var posY = MargeY + ((gridCell.y + 1) * cellHeight) - (cellHeight / 2);
+		return new Vector2 (posX, posY);
+	}
 
 	public bool MoveToCell(RectTransform transform, Vector2 gridCell){
-		var posX = (gridCell.x * Width) - (Width / 2);
-		var posY = (gridCell.y * Height) - (Height / 2);
 		var source = transform.anchoredPosition;
-		var destination = new Vector2 (posX, posY);
+		var destination = GetCellPosition (gridCell);
 
 		transform.anchoredPosition = Vector2.Lerp (source, destination, Speed * Time.deltaTime);
 
@@ -50,10 +64,8 @@ public class GridLayout : MonoBehaviour {
 			});
 		}
 
-		if (transform.anchoredPosition.x >= destination.x - 0.01f &&
-			transform.anchoredPosition.x <= destination.x + 0.01f &&
-			transform.anchoredPosition.y >= destination.y - 0.01f &&
-			transform.anchoredPosition.y <= destination.y + 0.01f) {
+		if (Math.Abs(transform.anchoredPosition.x - destination.x) <= 1f &&
+            Math.Abs(transform.anchoredPosition.y - destination.y) <= 1f) {
 			return false;
 		}
 		return true;
@@ -67,16 +79,21 @@ public class GridLayout : MonoBehaviour {
 	void OnGUI(){
 		var wallWidth = Wall.RectTransform.sizeDelta.x;
 		var wallHeight = Wall.RectTransform.sizeDelta.y;
+		var cellWidth = GetCellsWidth ();
+		var cellHeight = GetCellsHeight ();
+
+		var margeX2 = MargeX + (NbCellsX * cellWidth);
+		var margeY2 = MargeY + (NbCellsY * cellHeight);
 
 		if (DrawGrid) {
 			// Verticals rows
-			for (var x = 0f; x < wallWidth; x += Width) {
-				Drawing.DrawLine (CamToCanvas(new Vector2 (x, 0)), CamToCanvas(new Vector2 (x, wallWidth)), Color.red, LineWidth, true);
+			for (var x = MargeX; x <= margeX2 + 0.01f; x += cellWidth) {
+				Drawing.DrawLine (CamToCanvas(new Vector2 (x, MargeY)), CamToCanvas(new Vector2 (x, margeY2)), Color.red, LineWidth, true);
 			}
 
 			// Horizontal
-			for (var y = 0f; y < wallHeight; y += Height) {
-				Drawing.DrawLine (CamToCanvas(new Vector2 (0, y)), CamToCanvas(new Vector2 (wallWidth, y)), Color.red, LineWidth, true);
+			for (var y = MargeY; y <= margeY2 + 0.01f; y += cellHeight) {
+				Drawing.DrawLine (CamToCanvas(new Vector2 (MargeX, y)), CamToCanvas(new Vector2 (margeX2, y)), Color.red, LineWidth, true);
 			}
 		}
 

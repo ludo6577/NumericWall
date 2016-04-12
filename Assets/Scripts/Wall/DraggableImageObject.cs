@@ -8,9 +8,9 @@ using TouchScript;
 using TouchScript.Gestures;
 using TouchScript.Utils;
 
-public class DraggableImageObject : DraggableObject {
-	
-	public void SetImage(Sprite sprite){
+public class DraggableImageObject : DraggableObject
+{
+	public virtual void SetImage(Sprite sprite){
 		var imageObject = GetComponentInChildren<ImageObject> ();
 		imageObject.SetImage (sprite);
 
@@ -28,5 +28,4 @@ public class DraggableImageObject : DraggableObject {
 			collider.size = size;
 		}
 	}
-
 }

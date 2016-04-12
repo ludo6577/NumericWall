@@ -33,15 +33,19 @@ public class DraggableVideoObject : DraggableImageObject
 			RectTransform.sizeDelta = size;
 			collider.size = size;
 		}
+
+        movie.Play();
 	}
 
 	private void OnEnable()
 	{
+		base.OnEnable ();
 		GetComponent<TapGesture>().Tapped += tappedHandler;
 	}
 
 	private void OnDisable()
 	{
+		base.OnDisable ();
 		GetComponent<TapGesture>().Tapped -= tappedHandler;
 	}
 
