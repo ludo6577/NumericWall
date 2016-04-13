@@ -64,8 +64,8 @@ public class GridLayout : MonoBehaviour {
 			});
 		}
 
-		if (Math.Abs(transform.anchoredPosition.x - destination.x) <= 1f &&
-            Math.Abs(transform.anchoredPosition.y - destination.y) <= 1f) {
+		if (Math.Abs(transform.anchoredPosition.x - destination.x) <= 10f &&
+            Math.Abs(transform.anchoredPosition.y - destination.y) <= 10f) {
 			return false;
 		}
 		return true;

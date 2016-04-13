@@ -36,20 +36,34 @@ public class DraggableObject : MonoBehaviour {
 	[Range(1.001f, 2f)]
 	public float MaxScale = 1.5f;
 
-	[Range(1f, 100f)]
+	[Range(0.5f, 5f)]
 	public float MaxIdleTime;
 
+
+    private ObjectState _currentState;
+
+    protected ObjectState CurrentState
+    {
+        get { return _currentState; }
+        set
+        {
+            _currentState = value;
+            gameObject.name = GetObjectName();
+        }
+    }
 
     /*
 	 * Private variables
 	 */
     private string draggableObjectName;
     private WallScript wall;
-	private ObjectState currentState;
 	private int layer;
 	private Vector2 destinationPosition;
     private Vector2 destinationScale;
     private bool forceScale;
+
+    private float destinationColor;
+
     private float idleTime;
 
     /*
@@ -73,12 +87,34 @@ public class DraggableObject : MonoBehaviour {
 		}
 	}
 
+    private Image _image;
+    protected Image Image
+    {
+        get
+        {
+            if (_image == null)
+                _image = GetComponent<Image>();
+            return _image;
+        }
+    }
+
+    private Image _childImage;
+    protected Image ChildImage
+    {
+        get
+        {
+            if (_childImage == null)
+                _childImage = transform.GetChild(0).GetComponentInChildren<Image>();
+            return _childImage;
+        }
+    }
+
     /*
 	 * 	Start / Update
 	 */
     public void Init(Transform parent, WallScript wall, string name){
 		this.transform.SetParent(parent, false);
-        this.currentState = ObjectState.Idle;
+        this.CurrentState = ObjectState.Idle;
         this.draggableObjectName = name;
         this.forceScale = false;
         this.wall = wall;
@@ -95,7 +131,7 @@ public class DraggableObject : MonoBehaviour {
 		if (wall == null)
 			return;
 
-		switch (currentState) {
+		switch (CurrentState) {
 			case ObjectState.Idle:
                 RigidBody.isKinematic = false;
 			break;
@@ -103,21 +139,26 @@ public class DraggableObject : MonoBehaviour {
 			case ObjectState.Moving:
                 RigidBody.isKinematic = false;
 				if (!wall.Grid.MoveToCell (RectTransform, destinationPosition))
-					currentState = ObjectState.Idle;
+					CurrentState = ObjectState.Idle;
 			break;
 
 			case ObjectState.Dragged: 
 			break;
 
             case ObjectState.Launched:
-		        if (idleTime > MaxIdleTime)
-		            currentState = ObjectState.Idle;
-            break;
+		        if (Time.time - idleTime > MaxIdleTime)
+		        {
+		            CurrentState = ObjectState.Idle;
+                    SetLayer(1);
+                    wall.UpdateLayers();
+                }
+		        break;
 		}
 
         ControlPosition();
         ControlRotation();
         ControlScale();
+	    ControlColor();
 	}
 
     /*
@@ -125,64 +166,72 @@ public class DraggableObject : MonoBehaviour {
 	 */
     protected void OnEnable()
 	{
-		GetComponent<PressGesture>().Pressed += pressedHandler;
-		GetComponent<TransformGesture>().TransformStarted += transformStartedHandler;
-		GetComponent<TransformGesture>().Transformed += transformedHandler;
-		GetComponent<TransformGesture>().TransformCompleted += transformCompletedhandler;
+        GetComponent<TapGesture>().StateChanged += pressStateChangedHandler;
+        GetComponent<TransformGesture>().StateChanged += transformStateChangedHandler;
 	}
 
 	protected void OnDisable()
 	{
-		GetComponent<PressGesture>().Pressed += pressedHandler;
-		GetComponent<TransformGesture>().TransformStarted -= transformStartedHandler;
-		GetComponent<TransformGesture> ().Transformed -= transformedHandler;
-		GetComponent<TransformGesture>().TransformCompleted -= transformCompletedhandler;
+        GetComponent<TapGesture>().StateChanged -= pressStateChangedHandler;
+        GetComponent<TransformGesture>().StateChanged -= transformStateChangedHandler;
 	}
-    
+
+
     // On press
-    private void pressedHandler(object sender, EventArgs e){
-		currentState = ObjectState.Dragged;
-        RigidBody.isKinematic = true;
-        idleTime = Time.time;
-        SetLayer (0);
-        wall.UpdateLayers();
+    private void pressStateChangedHandler(object sender, GestureStateChangeEventArgs e)
+    {
+        //Debug.Log(e.State);
+        switch (e.State)
+        {
+            case Gesture.GestureState.Recognized:
+                CurrentState = ObjectState.Launched;
+                RigidBody.isKinematic = true;
+                idleTime = Time.time;
+                SetLayer(0);
+                wall.UpdateLayers();
+            break;
+        }
+        
+    }
+    private void transformStateChangedHandler(object sender, GestureStateChangeEventArgs e)
+    {
+        switch (e.State)
+        {
+            case Gesture.GestureState.Began:
+                CurrentState = ObjectState.Dragged;
+                RigidBody.isKinematic = true;
+                idleTime = Time.time;
+                SetLayer(0);
+            break;
+            case Gesture.GestureState.Changed:
+                CurrentState = ObjectState.Dragged;
+                RigidBody.isKinematic = true;
+                idleTime = Time.time;
+                SetLayer(0);
+            break;
+            case Gesture.GestureState.Ended:
+                CurrentState = ObjectState.Launched;
+                RigidBody.isKinematic = false;
+                idleTime = Time.time;
+                RigidBody.AddForce(((TransformGesture)sender).DeltaPosition * Inertia, ForceMode2D.Impulse);
+            break;
+        }
+
     }
 
-	// Begin transform
-	private void transformStartedHandler(object sender, EventArgs e){
-        currentState = ObjectState.Dragged;
-        RigidBody.isKinematic = true;
-        idleTime = Time.time;
-        SetLayer (0);
-	}
 
-	// transform in progress...
-	private void transformedHandler(object sender, EventArgs e)
-	{
-        currentState = ObjectState.Dragged;
-        RigidBody.isKinematic = true;
-        idleTime = Time.time;
-        SetLayer (0);
-	}
-
-	// End transform
-	private void transformCompletedhandler(object sender, EventArgs e)
-	{
-        currentState = ObjectState.Launched;
-        RigidBody.isKinematic = false;
-        idleTime = Time.time;
-
-        var gesture = (TransformGesture)sender;
-        RigidBody.AddForce(gesture.DeltaPosition * Inertia, ForceMode2D.Impulse);
-	}
-    
     // Collision with other object
     public void OnTriggerStay2D(Collider2D other)
     {
         var otherObj = other.gameObject.GetComponent<DraggableObject>();
-        if (otherObj != null && RigidBody.velocity.magnitude < MaxVelocity && currentState == ObjectState.Idle)
+        if (otherObj != null && RigidBody.velocity.magnitude < MaxVelocity && CurrentState == ObjectState.Idle && otherObj.CurrentState != ObjectState.Moving)
         {
-            RigidBody.AddForce(GetCenter() - otherObj.GetCenter(), ForceMode2D.Force);
+            var direction = (GetCenter() - otherObj.GetCenter());
+            direction.Normalize();
+
+            var power = transform.GetSiblingIndex() > otherObj.transform.GetSiblingIndex() ? 0.5f : 2f;
+
+            RigidBody.AddForce(direction * power, ForceMode2D.Impulse);
         }
     }
 
@@ -222,14 +271,29 @@ public class DraggableObject : MonoBehaviour {
     private void ControlPosition()
     {
         // Goes out (X)
-        if (RigidBody.velocity.magnitude < MaxVelocity && (RectTransform.anchoredPosition.x < 0 && RigidBody.velocity.x < 0) || (RectTransform.anchoredPosition.x > wall.RectTransform.sizeDelta.x && RigidBody.velocity.x > 0))
+        if (RigidBody.velocity.magnitude < MaxVelocity/2 && (RectTransform.anchoredPosition.x < 0 && RigidBody.velocity.x < 0) || (RectTransform.anchoredPosition.x > wall.RectTransform.sizeDelta.x && RigidBody.velocity.x > 0))
         {
             RigidBody.AddForce(new Vector2(-1.5f * RigidBody.velocity.x, RigidBody.velocity.y), ForceMode2D.Impulse);
         }
         // Goes out (Y)
-        if (RigidBody.velocity.magnitude < MaxVelocity && (RectTransform.anchoredPosition.y < 0 && RigidBody.velocity.y < 0) || (RectTransform.anchoredPosition.y > wall.RectTransform.sizeDelta.y && RigidBody.velocity.y > 0))
+        if (RigidBody.velocity.magnitude < MaxVelocity/2 && (RectTransform.anchoredPosition.y < 0 && RigidBody.velocity.y < 0) || (RectTransform.anchoredPosition.y > wall.RectTransform.sizeDelta.y && RigidBody.velocity.y > 0))
         {
             RigidBody.AddForce(new Vector2(RigidBody.velocity.x, -1.5f * RigidBody.velocity.y), ForceMode2D.Impulse);
+        }
+    }
+
+    private void ControlColor()
+    {
+        var rgb = Image.color.r;
+        if (Math.Abs(rgb - destinationColor) > 0.02f)
+        {
+            var diff = 0.01f;
+            rgb = rgb > destinationColor ? rgb - diff : rgb + diff;
+            Image.color = new Color(rgb, rgb, rgb, 1f);
+
+            //TODO VIDEO
+            if(ChildImage!=null)
+                ChildImage.color = new Color(rgb, rgb, rgb, 1f);
         }
     }
 
@@ -247,22 +311,28 @@ public class DraggableObject : MonoBehaviour {
 
             var unityLayer = LayerMask.NameToLayer ("Layer" + layerNumber);
 			gameObject.layer = unityLayer >= 0 ? unityLayer : wall.LayersCount + 7;
-			gameObject.name = draggableObjectName + "(Layer: " + layerNumber + ")";
+		    gameObject.name = GetObjectName();
 
             destinationScale = new Vector2(1f - (layerNumber * 0.2f), 1f - (layerNumber * 0.2f));
-        }
+            destinationColor = 1f - layer * 0.2f;
+		}
 
 		var index = transform.GetSiblingIndex ();
 		transform.localPosition = new Vector3(transform.localPosition.x, transform.localPosition.y, (layerNumber * 10f) - (index * 0.01f) - (wall.LayersCount * 10f) );
 	}
 
-	public void SetGridPosition(Vector2 pos)
+    private string GetObjectName()
+    {
+        return draggableObjectName + "(" + CurrentState + " on layer " + layer + ")";
+    }
+
+    public void SetGridPosition(Vector2 pos)
 	{
-	    if (currentState == ObjectState.Dragged || currentState == ObjectState.Launched)
+	    if (CurrentState == ObjectState.Dragged || CurrentState == ObjectState.Launched)
 	        return;
 
 		destinationPosition = pos;
-		currentState = ObjectState.Moving;
+		CurrentState = ObjectState.Moving;
 	}
 
     public Vector2 GetCenter()
