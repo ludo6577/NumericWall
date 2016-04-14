@@ -49,8 +49,17 @@ public class WallScript : MonoBehaviour {
 			if (draggableObjects.Count >= MaxImages)
 				break;
 
-			var obj = CreateNewObject (ObjectImagePrefab, "Image");
-			((DraggableImageObject) obj).SetImage (sprite);
+            //TODO DEBUG ONLY !!!
+            var obj = CreateNewObject (ObjectImagePrefab, "Image");
+		    /*DraggableObject obj = null;
+            if (draggableObjects.Count==0)
+                obj = CreateNewObject(ObjectImagePrefab, "Image", new Vector2(500, 300));
+            else if (draggableObjects.Count == 1)
+                obj = CreateNewObject(ObjectImagePrefab, "Image", new Vector2(400, 400));
+            else
+                obj = CreateNewObject(ObjectImagePrefab, "Image", new Vector2(600, 500));*/
+
+            ((DraggableImageObject) obj).SetImage (sprite);
 			draggableObjects.Add (obj);
 		}
 
@@ -65,7 +74,8 @@ public class WallScript : MonoBehaviour {
 			draggableObjects.Add (obj);
 		}
 
-		this.UpdateLayers ();
+        //TODO DEBUG ONLY !!!
+        this.UpdateLayers ();
 		this.UpdateMove (true);
 	}
 
@@ -74,22 +84,26 @@ public class WallScript : MonoBehaviour {
 	}
 
 
-	private DraggableObject CreateNewObject(DraggableObject prefab, string name){
+    private DraggableObject CreateNewObject(DraggableObject prefab, string objectName, Vector2 initialPosition)
+    {
+        Vector2 center = new Vector2(RectTransform.sizeDelta.x / 2, RectTransform.sizeDelta.y / 2);
+        var obj = (DraggableObject)Instantiate(prefab, initialPosition, transform.rotation);
+        obj.Init(transform, this, objectName);
+        return obj;
+    }
+
+
+
+    private DraggableObject CreateNewObject(DraggableObject prefab, string objectName)
+    {
 		// TODO: ugly, but... its a poc...
 		float posX = 0f, posY = 0f;
 		while(posX>=0f && posX<=RectTransform.sizeDelta.x && posY>=0f && posY<=RectTransform.sizeDelta.y){
 			posX = Random.Range(-InitialRange, RectTransform.sizeDelta.x + InitialRange);
 			posY = Random.Range(-InitialRange, RectTransform.sizeDelta.y + InitialRange);
 		}
-
-		Vector2 initialPosition = new Vector2 (posX, posY);
-		Vector2 center = new Vector2 (RectTransform.sizeDelta.x/2, RectTransform.sizeDelta.y/2);
-		Vector2 initialSpeed = center - initialPosition;
-
-		var obj = (DraggableObject) Instantiate(prefab, initialPosition, transform.rotation);
-		obj.Init (transform, this, name); 
-		return obj;
-	}
+        return CreateNewObject(prefab, name, new Vector2(posX, posY));
+    }
 
 
 	public void UpdateLayers(){

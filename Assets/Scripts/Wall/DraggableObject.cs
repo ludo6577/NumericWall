@@ -1,12 +1,6 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.EventSystems;
-using TouchScript;
 using TouchScript.Gestures;
-using TouchScript.Utils;
 
 public enum ObjectState{
 	Idle = 0,	// Do nothing
@@ -40,17 +34,18 @@ public class DraggableObject : MonoBehaviour {
 	public float MaxIdleTime;
 
 
-    private ObjectState _currentState;
-
+    private ObjectState currentState;
     protected ObjectState CurrentState
     {
-        get { return _currentState; }
+        get { return currentState; }
         set
         {
-            _currentState = value;
+            currentState = value;
             gameObject.name = GetObjectName();
         }
     }
+
+    private bool isTriggered;
 
     /*
 	 * Private variables
@@ -116,6 +111,7 @@ public class DraggableObject : MonoBehaviour {
 		this.transform.SetParent(parent, false);
         this.CurrentState = ObjectState.Idle;
         this.draggableObjectName = name;
+        this.isTriggered = false;
         this.forceScale = false;
         this.wall = wall;
 		this.layer = -1;
@@ -223,9 +219,13 @@ public class DraggableObject : MonoBehaviour {
     // Collision with other object
     public void OnTriggerStay2D(Collider2D other)
     {
+        //TODO DEBUG ONLY !!!
+        //return;
         var otherObj = other.gameObject.GetComponent<DraggableObject>();
         if (otherObj != null && RigidBody.velocity.magnitude < MaxVelocity && CurrentState == ObjectState.Idle && otherObj.CurrentState != ObjectState.Moving)
         {
+            isTriggered = true;
+
             var direction = (GetCenter() - otherObj.GetCenter());
             direction.Normalize();
 
@@ -233,6 +233,11 @@ public class DraggableObject : MonoBehaviour {
 
             RigidBody.AddForce(direction * power, ForceMode2D.Impulse);
         }
+    }
+
+    public void OnTriggerExit2D(Collider2D other)
+    {
+        isTriggered = false;
     }
 
     /*
@@ -251,7 +256,7 @@ public class DraggableObject : MonoBehaviour {
 			transform.localScale = new Vector2(transform.localScale.x, MinScale);
 
         // Get back to normal scale
-        if (forceScale || Time.time > idleTime + MaxIdleTime && Math.Abs(transform.localScale.x - destinationScale.x) > 0.01f)
+        if (forceScale || Time.time > idleTime + MaxIdleTime && Mathf.Abs(transform.localScale.x - destinationScale.x) > 0.01f)
         {
             transform.localScale = Vector2.Lerp(transform.localScale, destinationScale, 0.02f);
         }
@@ -271,21 +276,31 @@ public class DraggableObject : MonoBehaviour {
     private void ControlPosition()
     {
         // Goes out (X)
-        if (RigidBody.velocity.magnitude < MaxVelocity/2 && (RectTransform.anchoredPosition.x < 0 && RigidBody.velocity.x < 0) || (RectTransform.anchoredPosition.x > wall.RectTransform.sizeDelta.x && RigidBody.velocity.x > 0))
+        if ((RectTransform.anchoredPosition.x < 0 && RigidBody.velocity.x < 0) || (RectTransform.anchoredPosition.x > wall.RectTransform.sizeDelta.x && RigidBody.velocity.x > 0))
         {
             RigidBody.AddForce(new Vector2(-1.5f * RigidBody.velocity.x, RigidBody.velocity.y), ForceMode2D.Impulse);
+            if (isTriggered)
+            {
+                var pos = new Vector2(Random.Range(0, wall.Grid.NbCellsX), Random.Range(0, wall.Grid.NbCellsY));
+                SetGridPosition(pos);
+            }
         }
         // Goes out (Y)
-        if (RigidBody.velocity.magnitude < MaxVelocity/2 && (RectTransform.anchoredPosition.y < 0 && RigidBody.velocity.y < 0) || (RectTransform.anchoredPosition.y > wall.RectTransform.sizeDelta.y && RigidBody.velocity.y > 0))
+        if ((RectTransform.anchoredPosition.y < 0 && RigidBody.velocity.y < 0) || (RectTransform.anchoredPosition.y > wall.RectTransform.sizeDelta.y && RigidBody.velocity.y > 0))
         {
             RigidBody.AddForce(new Vector2(RigidBody.velocity.x, -1.5f * RigidBody.velocity.y), ForceMode2D.Impulse);
+            if (isTriggered)
+            {
+                var pos = new Vector2(Random.Range(0, wall.Grid.NbCellsX), Random.Range(0, wall.Grid.NbCellsY));
+                SetGridPosition(pos);
+            }
         }
     }
 
     private void ControlColor()
     {
         var rgb = Image.color.r;
-        if (Math.Abs(rgb - destinationColor) > 0.02f)
+        if (Mathf.Abs(rgb - destinationColor) > 0.02f)
         {
             var diff = 0.01f;
             rgb = rgb > destinationColor ? rgb - diff : rgb + diff;
@@ -328,7 +343,7 @@ public class DraggableObject : MonoBehaviour {
 
     public void SetGridPosition(Vector2 pos)
 	{
-	    if (CurrentState == ObjectState.Dragged || CurrentState == ObjectState.Launched)
+	    if (CurrentState != ObjectState.Idle)
 	        return;
 
 		destinationPosition = pos;
