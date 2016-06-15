@@ -23,7 +23,7 @@ public class GridLayout : MonoBehaviour {
 	public bool DrawMovement;
 	public float LineWidth = 1;
 
-	public new List <Vector2[]> MovingLine;
+	public List <Vector2[]> MovingLine;
 
 	private WallScript Wall;
 
@@ -51,11 +51,22 @@ public class GridLayout : MonoBehaviour {
 		return new Vector2 (posX, posY);
 	}
 
+    public bool IsAtCell(RectTransform transform, Vector2 gridCell)
+    {
+        var destination = GetCellPosition(gridCell);
+        if (Math.Abs(transform.anchoredPosition.x - destination.x) <= 10f &&
+            Math.Abs(transform.anchoredPosition.y - destination.y) <= 10f)
+        {
+            return false;
+        }
+        return true;
+    }
+
 	public bool MoveToCell(RectTransform transform, Vector2 gridCell){
 		var source = transform.anchoredPosition;
-		var destination = GetCellPosition (gridCell);
+        var destination = GetCellPosition(gridCell);
 
-		transform.anchoredPosition = Vector2.Lerp (source, destination, Speed * Time.deltaTime);
+        transform.anchoredPosition = Vector2.Lerp (source, destination, Speed * Time.deltaTime);
 
 		if (DrawMovement) {
 			MovingLine.Add (new Vector2[] {
@@ -64,11 +75,7 @@ public class GridLayout : MonoBehaviour {
 			});
 		}
 
-		if (Math.Abs(transform.anchoredPosition.x - destination.x) <= 10f &&
-            Math.Abs(transform.anchoredPosition.y - destination.y) <= 10f) {
-			return false;
-		}
-		return true;
+	    return IsAtCell(transform, gridCell);
 	}
 
 	void FixedUpdate(){

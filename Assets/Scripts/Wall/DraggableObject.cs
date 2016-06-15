@@ -1,16 +1,18 @@
-﻿using UnityEngine;
+﻿using System.Collections;
+using UnityEngine;
 using UnityEngine.UI;
 using TouchScript.Gestures;
 
 public enum ObjectState{
-	Idle = 0,	// Do nothing
-	Moving,		// Moving to designed position
-	Dragged,	// Dragged by user
-    Launched    // After a drag
+	Idle = 0,	    // Do nothing
+	Moving,         // Moving to designed position
+    Pressed,        // Pressed by user
+    Released,       // Released without Transform
+    Transformed,    // Transformed by user (moved, scaled, rotated)
+    Launched        // After a Transform
 }
 
 
-[RequireComponent(typeof(Image))]
 public class DraggableObject : MonoBehaviour {
 
     /*
@@ -21,18 +23,23 @@ public class DraggableObject : MonoBehaviour {
     [Range(0f, 1000f)]
 	public float Inertia = 10f;
 
-    [Range(0f, 100f)]
+    [Range(0f, 1000f)]
     public float MaxVelocity;
 
-    [Range(0f, 0.999f)]
+    [Range(0f, 1f)]
 	public float MinScale = 0.5f;
 
-	[Range(1.001f, 2f)]
+	[Range(1f, 5f)]
 	public float MaxScale = 1.5f;
 
-	[Range(0.5f, 5f)]
+	[Range(0.1f, 5f)]
 	public float MaxIdleTime;
 
+    [Range(0.1f, 1f)]
+    public float LayersScaleFactor = 0.2f;
+
+    [Range(0.1f, 1f)]
+    public float LayersColorFactor = 0.2f;
 
     private ObjectState currentState;
     protected ObjectState CurrentState
@@ -55,7 +62,7 @@ public class DraggableObject : MonoBehaviour {
 	private int layer;
 	private Vector2 destinationPosition;
     private Vector2 destinationScale;
-    private bool forceScale;
+    //private bool scaleImmediatly;
 
     private float destinationColor;
 
@@ -93,13 +100,13 @@ public class DraggableObject : MonoBehaviour {
         }
     }
 
-    private Image _childImage;
-    protected Image ChildImage
+    private RawImage _childImage;
+    protected RawImage ChildImage
     {
         get
         {
             if (_childImage == null)
-                _childImage = transform.GetChild(0).GetComponentInChildren<Image>();
+                _childImage = transform.GetChild(0).GetComponentInChildren<RawImage>();
             return _childImage;
         }
     }
@@ -112,7 +119,7 @@ public class DraggableObject : MonoBehaviour {
         this.CurrentState = ObjectState.Idle;
         this.draggableObjectName = name;
         this.isTriggered = false;
-        this.forceScale = false;
+        //this.scaleImmediatly = false;
         this.wall = wall;
 		this.layer = -1;
 
@@ -127,22 +134,26 @@ public class DraggableObject : MonoBehaviour {
 		if (wall == null)
 			return;
 
-		switch (CurrentState) {
+        //Debug.Log(CurrentState);
+
+        switch (CurrentState) {
 			case ObjectState.Idle:
                 RigidBody.isKinematic = false;
 			break;
 
 			case ObjectState.Moving:
                 RigidBody.isKinematic = false;
-				if (!wall.Grid.MoveToCell (RectTransform, destinationPosition))
+				if (!wall.Grid.MoveToCell(RectTransform, destinationPosition))
 					CurrentState = ObjectState.Idle;
 			break;
-
-			case ObjectState.Dragged: 
+                
+			case ObjectState.Pressed: 
+            case ObjectState.Transformed:
 			break;
 
             case ObjectState.Launched:
-		        if (Time.time - idleTime > MaxIdleTime)
+            case ObjectState.Released:
+                if (Time.time - idleTime > MaxIdleTime)
 		        {
 		            CurrentState = ObjectState.Idle;
                     SetLayer(1);
@@ -163,16 +174,19 @@ public class DraggableObject : MonoBehaviour {
     protected void OnEnable()
 	{
         GetComponent<TapGesture>().StateChanged += pressStateChangedHandler;
+        GetComponent<PressGesture>().StateChanged += pressStateChangedHandler;
+        GetComponent<ReleaseGesture>().StateChanged += releaseStateChangedHandler;
         GetComponent<TransformGesture>().StateChanged += transformStateChangedHandler;
 	}
 
 	protected void OnDisable()
 	{
         GetComponent<TapGesture>().StateChanged -= pressStateChangedHandler;
+        GetComponent<PressGesture>().StateChanged -= pressStateChangedHandler;
+        GetComponent<ReleaseGesture>().StateChanged -= releaseStateChangedHandler;
         GetComponent<TransformGesture>().StateChanged -= transformStateChangedHandler;
 	}
-
-
+    
     // On press
     private void pressStateChangedHandler(object sender, GestureStateChangeEventArgs e)
     {
@@ -180,27 +194,34 @@ public class DraggableObject : MonoBehaviour {
         switch (e.State)
         {
             case Gesture.GestureState.Recognized:
-                CurrentState = ObjectState.Launched;
+                CurrentState = ObjectState.Pressed;
                 RigidBody.isKinematic = true;
                 idleTime = Time.time;
                 SetLayer(0);
                 wall.UpdateLayers();
             break;
         }
-        
+    }
+    private void releaseStateChangedHandler(object sender, GestureStateChangeEventArgs e)
+    {
+        //Debug.Log(e.State);
+        switch (e.State)
+        {
+            case Gesture.GestureState.Recognized:
+                CurrentState = ObjectState.Released;
+                RigidBody.isKinematic = false;
+                idleTime = Time.time;
+                break;
+        }
     }
     private void transformStateChangedHandler(object sender, GestureStateChangeEventArgs e)
     {
+        //Debug.Log(e.State);
         switch (e.State)
         {
             case Gesture.GestureState.Began:
-                CurrentState = ObjectState.Dragged;
-                RigidBody.isKinematic = true;
-                idleTime = Time.time;
-                SetLayer(0);
-            break;
             case Gesture.GestureState.Changed:
-                CurrentState = ObjectState.Dragged;
+                CurrentState = ObjectState.Transformed;
                 RigidBody.isKinematic = true;
                 idleTime = Time.time;
                 SetLayer(0);
@@ -219,18 +240,23 @@ public class DraggableObject : MonoBehaviour {
     // Collision with other object
     public void OnTriggerStay2D(Collider2D other)
     {
-        //TODO DEBUG ONLY !!!
-        //return;
         var otherObj = other.gameObject.GetComponent<DraggableObject>();
-        if (otherObj != null && RigidBody.velocity.magnitude < MaxVelocity && CurrentState == ObjectState.Idle && otherObj.CurrentState != ObjectState.Moving)
+
+        if (otherObj != null && RigidBody.velocity.magnitude < MaxVelocity &&
+            (CurrentState != ObjectState.Pressed && CurrentState != ObjectState.Transformed)  &&
+            (otherObj.CurrentState == ObjectState.Pressed || otherObj.CurrentState == ObjectState.Transformed || otherObj.CurrentState == ObjectState.Launched))
         {
+            if (CurrentState == ObjectState.Moving)
+                CurrentState = ObjectState.Idle;
+
             isTriggered = true;
 
             var direction = (GetCenter() - otherObj.GetCenter());
             direction.Normalize();
-
-            var power = transform.GetSiblingIndex() > otherObj.transform.GetSiblingIndex() ? 0.5f : 2f;
-
+            
+            //var power = transform.GetSiblingIndex() > otherObj.transform.GetSiblingIndex() ? 1f : 4f;
+            var power = 4;
+            
             RigidBody.AddForce(direction * power, ForceMode2D.Impulse);
         }
     }
@@ -245,7 +271,7 @@ public class DraggableObject : MonoBehaviour {
      */
     private void ControlScale(){
         // Max scale (X)
-		if (transform.localScale.x >= MaxScale)
+		/*if (transform.localScale.x >= MaxScale)
 			transform.localScale = new Vector2(MaxScale, transform.localScale.y);
 		if (transform.localScale.x <= MinScale)
 			transform.localScale = new Vector2(MinScale, transform.localScale.y);
@@ -253,22 +279,18 @@ public class DraggableObject : MonoBehaviour {
         if (transform.localScale.y >= MaxScale)
 			transform.localScale = new Vector2(transform.localScale.x, MaxScale);
 		if (transform.localScale.y <= MinScale)
-			transform.localScale = new Vector2(transform.localScale.x, MinScale);
+			transform.localScale = new Vector2(transform.localScale.x, MinScale);*/
 
         // Get back to normal scale
-        if (forceScale || Time.time > idleTime + MaxIdleTime && Mathf.Abs(transform.localScale.x - destinationScale.x) > 0.01f)
+        if (CurrentState != ObjectState.Transformed && CurrentState != ObjectState.Launched && Mathf.Abs(transform.localScale.x - destinationScale.x) > 0.01f)
         {
             transform.localScale = Vector2.Lerp(transform.localScale, destinationScale, 0.02f);
         }
-        else
-        {
-            forceScale = false;
-        }		
 	}
 
 	private void ControlRotation(){
         // Go back to normal rotation
-		if (Time.time > idleTime + MaxIdleTime && transform.rotation != Quaternion.identity) {
+		if (CurrentState != ObjectState.Transformed && CurrentState != ObjectState.Launched && transform.rotation != Quaternion.identity) {
 			transform.rotation = Quaternion.Lerp (transform.rotation, Quaternion.identity, 0.05f);
 		}		
 	}
@@ -278,7 +300,7 @@ public class DraggableObject : MonoBehaviour {
         // Goes out (X)
         if ((RectTransform.anchoredPosition.x < 0 && RigidBody.velocity.x < 0) || (RectTransform.anchoredPosition.x > wall.RectTransform.sizeDelta.x && RigidBody.velocity.x > 0))
         {
-            RigidBody.AddForce(new Vector2(-1.5f * RigidBody.velocity.x, RigidBody.velocity.y), ForceMode2D.Impulse);
+            RigidBody.AddForce(new Vector2(-1.5f * RigidBody.velocity.x, RigidBody.velocity.y) * 2, ForceMode2D.Impulse);
             if (isTriggered)
             {
                 var pos = new Vector2(Random.Range(0, wall.Grid.NbCellsX), Random.Range(0, wall.Grid.NbCellsY));
@@ -288,18 +310,24 @@ public class DraggableObject : MonoBehaviour {
         // Goes out (Y)
         if ((RectTransform.anchoredPosition.y < 0 && RigidBody.velocity.y < 0) || (RectTransform.anchoredPosition.y > wall.RectTransform.sizeDelta.y && RigidBody.velocity.y > 0))
         {
-            RigidBody.AddForce(new Vector2(RigidBody.velocity.x, -1.5f * RigidBody.velocity.y), ForceMode2D.Impulse);
+            RigidBody.AddForce(new Vector2(RigidBody.velocity.x, -1.5f * RigidBody.velocity.y) * 2, ForceMode2D.Impulse);
             if (isTriggered)
             {
                 var pos = new Vector2(Random.Range(0, wall.Grid.NbCellsX), Random.Range(0, wall.Grid.NbCellsY));
                 SetGridPosition(pos);
             }
         }
+
+        if (RigidBody.velocity.magnitude > MaxVelocity)
+        {
+            var vel = RigidBody.velocity;
+            RigidBody.velocity = new Vector2(vel.x * 0.5f, vel.y * 0.5f);
+        }
     }
 
     private void ControlColor()
     {
-        var rgb = Image.color.r;
+        /*var rgb = Image.color.r;
         if (Mathf.Abs(rgb - destinationColor) > 0.02f)
         {
             var diff = 0.01f;
@@ -309,17 +337,17 @@ public class DraggableObject : MonoBehaviour {
             //TODO VIDEO
             if(ChildImage!=null)
                 ChildImage.color = new Color(rgb, rgb, rgb, 1f);
-        }
+        }*/
     }
 
 
     /*
      *  Utility methods
      */
-    public void SetLayer(int layerNumber){
+    public void SetLayer(int layerNumber)
+    {
 		if (this.layer != layerNumber)
 		{
-		    forceScale = true;
             layer = layerNumber;
             if (layerNumber == 0)
                 transform.SetAsLastSibling();
@@ -328,12 +356,12 @@ public class DraggableObject : MonoBehaviour {
 			gameObject.layer = unityLayer >= 0 ? unityLayer : wall.LayersCount + 7;
 		    gameObject.name = GetObjectName();
 
-            destinationScale = new Vector2(1f - (layerNumber * 0.2f), 1f - (layerNumber * 0.2f));
-            destinationColor = 1f - layer * 0.2f;
+            destinationScale = new Vector2(1f - (layerNumber * LayersScaleFactor), 1f - (layerNumber * LayersScaleFactor));
+            destinationColor = 1f - layer * LayersColorFactor;
 		}
 
 		var index = transform.GetSiblingIndex ();
-		transform.localPosition = new Vector3(transform.localPosition.x, transform.localPosition.y, (layerNumber * 10f) - (index * 0.01f) - (wall.LayersCount * 10f) );
+        transform.localPosition = new Vector3(transform.localPosition.x, transform.localPosition.y, -index*0.1f);
 	}
 
     private string GetObjectName()
@@ -349,6 +377,16 @@ public class DraggableObject : MonoBehaviour {
 		destinationPosition = pos;
 		CurrentState = ObjectState.Moving;
 	}
+
+    public void SetLastGridPosition()
+    {
+        SetGridPosition(destinationPosition);
+    }
+
+    public bool IsAttCell()
+    {
+        return wall.Grid.IsAtCell(RectTransform, destinationPosition);
+    }
 
     public Vector2 GetCenter()
     {

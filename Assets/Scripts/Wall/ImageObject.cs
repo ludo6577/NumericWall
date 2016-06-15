@@ -4,11 +4,15 @@ using System.Collections;
 
 public class ImageObject : MonoBehaviour {
 
-	public Sprite Sprite;
+	public Texture Texture;
 
-	public void SetImage(Sprite sprite){
-		this.Sprite = sprite;
-		var image = GetComponent<Image> ();
-		image.sprite = sprite;
-	}
+    public float marge;
+
+    public void SetImage(Texture texture)
+    {
+		this.Texture = Texture;
+        var image = GetComponent<RawImage>();
+        image.texture = texture;
+    }
+    
 }
