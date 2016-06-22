@@ -28,7 +28,7 @@ public class GridLayout : MonoBehaviour {
 	private WallScript Wall;
 
 
-	void Start(){
+	void Awake(){
 		Wall = GetComponent<WallScript> ();
 		MovingLine = new List <Vector2[]> ();
 	}
@@ -40,7 +40,7 @@ public class GridLayout : MonoBehaviour {
 
 	public float GetCellsHeight(){
 		var screenSize = Wall.RectTransform.sizeDelta;
-		return (screenSize.y - (MargeY*2)) / NbCellsY;
+        return (screenSize.y - (MargeY*2)) / NbCellsY;
 	}
 
 	public Vector2 GetCellPosition(Vector2 gridCell){

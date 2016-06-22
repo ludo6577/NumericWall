@@ -93,13 +93,13 @@ public class WallScript : MonoBehaviour
     IEnumerator Start ()
 	{
 	    ReadSchema();
-	    if (objCount > 0 && rowsCount > 0 && columnsCount > 0)
+	    if (objCount >= 0 && rowsCount > 0 && columnsCount > 0)
 	    {
 	        Grid.NbCellsX = columnsCount;
             Grid.NbCellsY = rowsCount;
 	        if (MaxImages > objCount)
 	            MaxImages = objCount;
-            Debug.Log(string.Format("Grid created: {0} rows, {1} columns", rowsCount, columnsCount));
+            Debug.Log(string.Format("[Wall] Grid created: {0} rows, {1} columns", rowsCount, columnsCount));
         }
 
         var index = 0;
@@ -111,23 +111,22 @@ public class WallScript : MonoBehaviour
                 break;
             if (!(fileName.EndsWith(".jpg", true, CultureInfo.InvariantCulture) || fileName.EndsWith(".png", true, CultureInfo.InvariantCulture)))
                 continue;
-
-            //Debug.Log(string.Format("Importing: {0}", fileName));
-            WWW www = new WWW("file://" + fileName);
-            yield return www;
-
+            
             Vector2 pos;
-            if (!objectPosition.TryGetValue(index, out pos))
+            if (objectPosition.TryGetValue(index, out pos))
             {
-                Debug.LogError("This key is missing: " + index);
-                pos = new Vector2(Random.Range(0, Grid.NbCellsX), Random.Range(0, Grid.NbCellsY));
+                var obj = (DraggableImageObject) CreateNewObject(ObjectImagePrefab, "Image" + index, Grid.GetCellPosition(pos));
+                obj.SetGridPosition(pos);
+                WWW www = new WWW("file://" + fileName);
+                yield return www;
+                obj.SetImage(www.texture);
+                draggableObjects.Add(obj);
             }
-            var obj = (DraggableImageObject) CreateNewObject(ObjectImagePrefab, "Image" + index, Grid.GetCellPosition(pos));
-            obj.SetGridPosition(pos);
-            obj.SetImage(www.texture);
-            draggableObjects.Add(obj);
+            else
+            {
+                Debug.LogError(string.Format("[Wall] Index {0} missing in Schema", index));
+            }
             index++;
-            //Debug.Log(string.Format("Object created: {0}", obj.name));
         }
         int imagesCount = draggableObjects.Count;
 
@@ -165,7 +164,7 @@ public class WallScript : MonoBehaviour
 
         this.UpdateLayers ();
 
-        Debug.Log(string.Format("Init completed: {0} object created.", draggableObjects.Count));
+        Debug.Log(string.Format("[Wall] Init completed: {0} object created.", draggableObjects.Count));
         initCompleted = true;
 	}
     
@@ -207,15 +206,15 @@ public class WallScript : MonoBehaviour
                         Debug.LogError("This key already exists: " + value);
                     else
                         objectPosition.Add(value, new Vector2(j, i));
-                    if (value > objCount)
+                    if (value+1 > objCount)
                     {
-                        objCount = value;
+                        objCount = value+1;
                     }
                 }
             }
         }
         columnsCount = maxColumnsCount;
-        Debug.Log(string.Format("Schema imported with {0} objects", objCount));
+        Debug.Log(string.Format("[Wall] Schema imported with {0} objects", objCount));
     }
 
     private DraggableObject CreateNewObject(DraggableObject prefab, string objectName, Vector2 initialPosition)

@@ -291,21 +291,21 @@ public class DraggableObject : MonoBehaviour {
         if ((RectTransform.anchoredPosition.x < 0 && RigidBody2D.velocity.x < 0) || (RectTransform.anchoredPosition.x > wall.RectTransform.sizeDelta.x && RigidBody2D.velocity.x > 0))
         {
             RigidBody2D.AddForce(new Vector2(-1.5f * RigidBody2D.velocity.x, RigidBody2D.velocity.y) * 2, ForceMode2D.Impulse);
-            if (isTriggered)
+            /*if (isTriggered)
             {
                 var pos = new Vector2(Random.Range(0, wall.Grid.NbCellsX), Random.Range(0, wall.Grid.NbCellsY));
                 SetGridPosition(pos);
-            }
+            }*/
         }
         // Goes out (Y)
         if ((RectTransform.anchoredPosition.y < 0 && RigidBody2D.velocity.y < 0) || (RectTransform.anchoredPosition.y > wall.RectTransform.sizeDelta.y && RigidBody2D.velocity.y > 0))
         {
             RigidBody2D.AddForce(new Vector2(RigidBody2D.velocity.x, -1.5f * RigidBody2D.velocity.y) * 2, ForceMode2D.Impulse);
-            if (isTriggered)
+            /*if (isTriggered)
             {
                 var pos = new Vector2(Random.Range(0, wall.Grid.NbCellsX), Random.Range(0, wall.Grid.NbCellsY));
                 SetGridPosition(pos);
-            }
+            }*/
         }
 
         if (RigidBody2D.velocity.magnitude > WallScript.Get().MaxVelocity)
