@@ -18,29 +18,6 @@ public class DraggableObject : MonoBehaviour {
     /*
 	 * 	Public variables
 	 */
-    public bool UnityCollisionSystem;
-
-    [Range(0f, 1000f)]
-	public float Inertia = 10f;
-
-    [Range(0f, 1000f)]
-    public float MaxVelocity;
-
-    [Range(0f, 1f)]
-	public float MinScale = 0.5f;
-
-	[Range(1f, 5f)]
-	public float MaxScale = 1.5f;
-
-	[Range(0.1f, 5f)]
-	public float MaxIdleTime;
-
-    [Range(0.1f, 1f)]
-    public float LayersScaleFactor = 0.2f;
-
-    [Range(0.1f, 1f)]
-    public float LayersColorFactor = 0.2f;
-
     private ObjectState currentState;
     protected ObjectState CurrentState
     {
@@ -49,6 +26,24 @@ public class DraggableObject : MonoBehaviour {
         {
             currentState = value;
             gameObject.name = GetObjectName();
+            switch (value)
+            {
+                case ObjectState.Idle:
+                    RigidBody2D.isKinematic = false;
+                    break;
+
+                case ObjectState.Moving:
+                    RigidBody2D.isKinematic = false;
+                    break;
+
+                case ObjectState.Pressed:
+                case ObjectState.Transformed:
+                    break;
+
+                case ObjectState.Launched:
+                case ObjectState.Released:
+                    break;
+            }
         }
     }
 
@@ -71,12 +66,12 @@ public class DraggableObject : MonoBehaviour {
     /*
 	 *	Object components 
 	 */
-    private Rigidbody2D _rigidBody;
-	protected Rigidbody2D RigidBody{
+    private Rigidbody2D _rigidBody2D;
+	protected Rigidbody2D RigidBody2D{
 		get{ 
-			if(_rigidBody == null)
-				_rigidBody = GetComponent<Rigidbody2D> ();
-			return _rigidBody; 
+			if(_rigidBody2D == null)
+				_rigidBody2D = GetComponent<Rigidbody2D> ();
+			return _rigidBody2D; 
 		}
 	}
 
@@ -124,10 +119,7 @@ public class DraggableObject : MonoBehaviour {
 		this.layer = -1;
 
         var collider = GetComponent<BoxCollider2D>();
-        if (UnityCollisionSystem)
-            collider.isTrigger = false;
-        else
-            collider.isTrigger = true;
+        collider.isTrigger = true;
     }
 
 	public void Update(){
@@ -138,12 +130,10 @@ public class DraggableObject : MonoBehaviour {
 
         switch (CurrentState) {
 			case ObjectState.Idle:
-                RigidBody.isKinematic = false;
 			break;
 
 			case ObjectState.Moving:
-                RigidBody.isKinematic = false;
-				if (!wall.Grid.MoveToCell(RectTransform, destinationPosition))
+				if (wall.Grid.MoveToCell(RectTransform, destinationPosition))
 					CurrentState = ObjectState.Idle;
 			break;
                 
@@ -153,7 +143,7 @@ public class DraggableObject : MonoBehaviour {
 
             case ObjectState.Launched:
             case ObjectState.Released:
-                if (Time.time - idleTime > MaxIdleTime)
+                if (Time.time - idleTime > WallScript.Get().MaxIdleTime)
 		        {
 		            CurrentState = ObjectState.Idle;
                     SetLayer(1);
@@ -195,7 +185,7 @@ public class DraggableObject : MonoBehaviour {
         {
             case Gesture.GestureState.Recognized:
                 CurrentState = ObjectState.Pressed;
-                RigidBody.isKinematic = true;
+                RigidBody2D.isKinematic = true;
                 idleTime = Time.time;
                 SetLayer(0);
                 wall.UpdateLayers();
@@ -209,7 +199,7 @@ public class DraggableObject : MonoBehaviour {
         {
             case Gesture.GestureState.Recognized:
                 CurrentState = ObjectState.Released;
-                RigidBody.isKinematic = false;
+                RigidBody2D.isKinematic = false;
                 idleTime = Time.time;
                 break;
         }
@@ -222,15 +212,15 @@ public class DraggableObject : MonoBehaviour {
             case Gesture.GestureState.Began:
             case Gesture.GestureState.Changed:
                 CurrentState = ObjectState.Transformed;
-                RigidBody.isKinematic = true;
+                RigidBody2D.isKinematic = true;
                 idleTime = Time.time;
                 SetLayer(0);
             break;
             case Gesture.GestureState.Ended:
                 CurrentState = ObjectState.Launched;
-                RigidBody.isKinematic = false;
+                RigidBody2D.isKinematic = false;
                 idleTime = Time.time;
-                RigidBody.AddForce(((TransformGesture)sender).DeltaPosition * Inertia, ForceMode2D.Impulse);
+                RigidBody2D.AddForce(((TransformGesture)sender).DeltaPosition * WallScript.Get().Inertia, ForceMode2D.Impulse);
             break;
         }
 
@@ -242,7 +232,7 @@ public class DraggableObject : MonoBehaviour {
     {
         var otherObj = other.gameObject.GetComponent<DraggableObject>();
 
-        if (otherObj != null && RigidBody.velocity.magnitude < MaxVelocity &&
+        if (otherObj != null && RigidBody2D.velocity.magnitude < WallScript.Get().MaxVelocity &&
             (CurrentState != ObjectState.Pressed && CurrentState != ObjectState.Transformed)  &&
             (otherObj.CurrentState == ObjectState.Pressed || otherObj.CurrentState == ObjectState.Transformed || otherObj.CurrentState == ObjectState.Launched))
         {
@@ -257,7 +247,7 @@ public class DraggableObject : MonoBehaviour {
             //var power = transform.GetSiblingIndex() > otherObj.transform.GetSiblingIndex() ? 1f : 4f;
             var power = 4;
             
-            RigidBody.AddForce(direction * power, ForceMode2D.Impulse);
+            RigidBody2D.AddForce(direction * power, ForceMode2D.Impulse);
         }
     }
 
@@ -271,20 +261,20 @@ public class DraggableObject : MonoBehaviour {
      */
     private void ControlScale(){
         // Max scale (X)
-		/*if (transform.localScale.x >= MaxScale)
-			transform.localScale = new Vector2(MaxScale, transform.localScale.y);
-		if (transform.localScale.x <= MinScale)
-			transform.localScale = new Vector2(MinScale, transform.localScale.y);
+		if (transform.localScale.x >= WallScript.Get().MaxScale)
+			transform.localScale = new Vector2(WallScript.Get().MaxScale, transform.localScale.y);
+		if (transform.localScale.x <= WallScript.Get().MinScale)
+			transform.localScale = new Vector2(WallScript.Get().MinScale, transform.localScale.y);
         // Max scale (Y)
-        if (transform.localScale.y >= MaxScale)
-			transform.localScale = new Vector2(transform.localScale.x, MaxScale);
-		if (transform.localScale.y <= MinScale)
-			transform.localScale = new Vector2(transform.localScale.x, MinScale);*/
+        if (transform.localScale.y >= WallScript.Get().MaxScale)
+			transform.localScale = new Vector2(transform.localScale.x, WallScript.Get().MaxScale);
+		if (transform.localScale.y <= WallScript.Get().MinScale)
+			transform.localScale = new Vector2(transform.localScale.x, WallScript.Get().MinScale);
 
         // Get back to normal scale
         if (CurrentState != ObjectState.Transformed && CurrentState != ObjectState.Launched && Mathf.Abs(transform.localScale.x - destinationScale.x) > 0.01f)
         {
-            transform.localScale = Vector2.Lerp(transform.localScale, destinationScale, 0.02f);
+            transform.localScale = Vector2.Lerp(transform.localScale, destinationScale, 0.01f);
         }
 	}
 
@@ -298,9 +288,9 @@ public class DraggableObject : MonoBehaviour {
     private void ControlPosition()
     {
         // Goes out (X)
-        if ((RectTransform.anchoredPosition.x < 0 && RigidBody.velocity.x < 0) || (RectTransform.anchoredPosition.x > wall.RectTransform.sizeDelta.x && RigidBody.velocity.x > 0))
+        if ((RectTransform.anchoredPosition.x < 0 && RigidBody2D.velocity.x < 0) || (RectTransform.anchoredPosition.x > wall.RectTransform.sizeDelta.x && RigidBody2D.velocity.x > 0))
         {
-            RigidBody.AddForce(new Vector2(-1.5f * RigidBody.velocity.x, RigidBody.velocity.y) * 2, ForceMode2D.Impulse);
+            RigidBody2D.AddForce(new Vector2(-1.5f * RigidBody2D.velocity.x, RigidBody2D.velocity.y) * 2, ForceMode2D.Impulse);
             if (isTriggered)
             {
                 var pos = new Vector2(Random.Range(0, wall.Grid.NbCellsX), Random.Range(0, wall.Grid.NbCellsY));
@@ -308,9 +298,9 @@ public class DraggableObject : MonoBehaviour {
             }
         }
         // Goes out (Y)
-        if ((RectTransform.anchoredPosition.y < 0 && RigidBody.velocity.y < 0) || (RectTransform.anchoredPosition.y > wall.RectTransform.sizeDelta.y && RigidBody.velocity.y > 0))
+        if ((RectTransform.anchoredPosition.y < 0 && RigidBody2D.velocity.y < 0) || (RectTransform.anchoredPosition.y > wall.RectTransform.sizeDelta.y && RigidBody2D.velocity.y > 0))
         {
-            RigidBody.AddForce(new Vector2(RigidBody.velocity.x, -1.5f * RigidBody.velocity.y) * 2, ForceMode2D.Impulse);
+            RigidBody2D.AddForce(new Vector2(RigidBody2D.velocity.x, -1.5f * RigidBody2D.velocity.y) * 2, ForceMode2D.Impulse);
             if (isTriggered)
             {
                 var pos = new Vector2(Random.Range(0, wall.Grid.NbCellsX), Random.Range(0, wall.Grid.NbCellsY));
@@ -318,10 +308,10 @@ public class DraggableObject : MonoBehaviour {
             }
         }
 
-        if (RigidBody.velocity.magnitude > MaxVelocity)
+        if (RigidBody2D.velocity.magnitude > WallScript.Get().MaxVelocity)
         {
-            var vel = RigidBody.velocity;
-            RigidBody.velocity = new Vector2(vel.x * 0.5f, vel.y * 0.5f);
+            var vel = RigidBody2D.velocity;
+            RigidBody2D.velocity = new Vector2(vel.x * 0.5f, vel.y * 0.5f);
         }
     }
 
@@ -356,8 +346,8 @@ public class DraggableObject : MonoBehaviour {
 			gameObject.layer = unityLayer >= 0 ? unityLayer : wall.LayersCount + 7;
 		    gameObject.name = GetObjectName();
 
-            destinationScale = new Vector2(1f - (layerNumber * LayersScaleFactor), 1f - (layerNumber * LayersScaleFactor));
-            destinationColor = 1f - layer * LayersColorFactor;
+            destinationScale = new Vector2(WallScript.Get().InitialScale - (layerNumber * WallScript.Get().LayersScaleFactor), WallScript.Get().InitialScale - (layerNumber * WallScript.Get().LayersScaleFactor));
+            destinationColor = 1f - layer * WallScript.Get().LayersColorFactor;
 		}
 
 		var index = transform.GetSiblingIndex ();

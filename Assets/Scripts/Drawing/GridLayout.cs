@@ -46,8 +46,9 @@ public class GridLayout : MonoBehaviour {
 	public Vector2 GetCellPosition(Vector2 gridCell){
 		var cellWidth = GetCellsWidth ();
 		var cellHeight = GetCellsHeight ();
-		var posX = MargeX + ((gridCell.x + 1) * cellWidth) - (cellWidth / 2);
-		var posY = MargeY + ((gridCell.y + 1) * cellHeight) - (cellHeight / 2);
+        var screenSize = Wall.RectTransform.sizeDelta;
+        var posX = MargeX + ((gridCell.x + 1) * cellWidth) - (cellWidth / 2);
+		var posY = screenSize.y - (MargeY + ((gridCell.y + 1) * cellHeight) - (cellHeight / 2)); // invert y (top to bottom)
 		return new Vector2 (posX, posY);
 	}
 
@@ -57,15 +58,14 @@ public class GridLayout : MonoBehaviour {
         if (Math.Abs(transform.anchoredPosition.x - destination.x) <= 10f &&
             Math.Abs(transform.anchoredPosition.y - destination.y) <= 10f)
         {
-            return false;
+            return true;
         }
-        return true;
+        return false;
     }
 
 	public bool MoveToCell(RectTransform transform, Vector2 gridCell){
 		var source = transform.anchoredPosition;
         var destination = GetCellPosition(gridCell);
-
         transform.anchoredPosition = Vector2.Lerp (source, destination, Speed * Time.deltaTime);
 
 		if (DrawMovement) {

@@ -14,36 +14,32 @@ public class DraggableVideoObject : DraggableImageObject
 	private MovieTexture movie;
 
 	public void SetVideo(MovieTexture texture){
-		movie = texture;
+        movie.Play();
+        movie = texture;
 		var videoObject = GetComponentInChildren<VideoObject> ();
 		videoObject.SetVideo (texture);
 
-		var collider = GetComponent<BoxCollider2D> ();
-
+        var collider = GetComponent<BoxCollider2D> ();
 		var ratioX = (float) texture.width / texture.height;
 		var ratioY = (float) texture.height / texture.width;
 		if (ratioX > 1) {
-			var size = new Vector2 (RectTransform.sizeDelta.x * ratioX, RectTransform.sizeDelta.y);;
-			videoObject.SetSize (size);
+			var size = new Vector2 (RectTransform.sizeDelta.x * ratioX, RectTransform.sizeDelta.y);
 			RectTransform.sizeDelta = size;
 			collider.size = size;
 		} else {
 			var size = new Vector2 (RectTransform.sizeDelta.x, RectTransform.sizeDelta.y * ratioY);
-			videoObject.SetSize (size);
 			RectTransform.sizeDelta = size;
 			collider.size = size;
 		}
-
-        movie.Play();
 	}
 
-	private void OnEnable()
+	new void OnEnable()
 	{
 		base.OnEnable ();
 		GetComponent<TapGesture>().Tapped += tappedHandler;
 	}
 
-	private void OnDisable()
+    new void OnDisable()
 	{
 		base.OnDisable ();
 		GetComponent<TapGesture>().Tapped -= tappedHandler;

@@ -1,28 +1,61 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using UnityEngine.Assertions.Must;
+using Random = UnityEngine.Random;
 
 
-public class WallScript : MonoBehaviour {
-	
-	public DraggableImageObject ObjectImagePrefab;
-	public DraggableVideoObject ObjectVideoPrefab;
+public class WallScript : MonoBehaviour
+{
+    [Header("Prefabs")]
+    public DraggableImageObject ObjectImagePrefab;
+    public DraggableVideoObject ObjectVideoPrefab;
 
-	public GridLayout Grid;
+    [Header("Grid params")]
+    public GridLayout Grid;
 
-	public int MaxImages;
+    [Header("Init params")]
+    public int MaxImages;
     public int MaxVideos;
 
+    [Header("Canvas params")]
     [Range(1, 7)]
-	public int LayersCount;
-	[Range(0, 10)]
-	public float InitialVelocity;
-	[Range(50, 1000)]
-	public int InitialRange;
+    public int LayersCount;
+    [Range(0, 10)]
+    public float InitialVelocity;
+    [Range(50, 1000)]
+    public int InitialRange;
     [Range(1, 10000)]
     public int MovingProbabilty;
+
+    [Header("Prefab params")]
+    [Range(0f, 1000f)]
+    public float Inertia = 50f;
+    [Range(0f, 1000f)]
+    public float MaxVelocity = 500f;
+    [Range(0.1f, 5f)]
+    public float MaxIdleTime = 1f;
+    [Range(1f, 100f)]
+    public float InitialScale = 1f;
+    [Range(0f, 1f)]
+    public float MinScale = 0.2f;
+    [Range(1f, 5f)]
+    public float MaxScale = 100f;
+    [Range(0.1f, 1f)]
+    public float LayersScaleFactor = 0.2f;
+    [Range(0.1f, 1f)]
+    public float LayersColorFactor = 0.2f;
+
+    private static WallScript instance;
+    public static WallScript Get()
+    {
+        return instance;
+    }
 
 
     private RectTransform _rectTransform;
@@ -34,7 +67,8 @@ public class WallScript : MonoBehaviour {
 		}
 	}
 
-    private static string SchemaPath = "Schema/SimplePlacement";
+    private static string ResourcesPath = "/../Resources/";
+    private static string SchemaPath = "Schemas";
     private static string ImagesPath = "Pictures";
 	private static string VideosPath = "Videos";
 	private List<DraggableObject> draggableObjects;
@@ -46,6 +80,16 @@ public class WallScript : MonoBehaviour {
 
     private bool initCompleted = false;
 
+    void Awake()
+    {
+        instance = this;
+        ResourcesPath = Application.dataPath + ResourcesPath; // Unity error if setted in class
+        SchemaPath = ResourcesPath + SchemaPath;
+        ImagesPath = ResourcesPath + ImagesPath;
+        VideosPath = ResourcesPath + VideosPath;
+    }
+    
+        
     IEnumerator Start ()
 	{
 	    ReadSchema();
@@ -53,125 +97,91 @@ public class WallScript : MonoBehaviour {
 	    {
 	        Grid.NbCellsX = columnsCount;
             Grid.NbCellsY = rowsCount;
-	        MaxImages = objCount;
-	    }
+	        if (MaxImages > objCount)
+	            MaxImages = objCount;
+            Debug.Log(string.Format("Grid created: {0} rows, {1} columns", rowsCount, columnsCount));
+        }
 
-        var index = 1;
+        var index = 0;
 		draggableObjects = new List<DraggableObject> ();
-        var path = Application.dataPath + "/Resources/" + ImagesPath;
-        string[] fileEntries = Directory.GetFiles(path);
+        string[] fileEntries = Directory.GetFiles(ImagesPath);
         foreach (string fileName in fileEntries)
         {
             if (draggableObjects.Count >= MaxImages)
                 break;
-            if (fileName.EndsWith(".meta"))
+            if (!(fileName.EndsWith(".jpg", true, CultureInfo.InvariantCulture) || fileName.EndsWith(".png", true, CultureInfo.InvariantCulture)))
                 continue;
 
+            //Debug.Log(string.Format("Importing: {0}", fileName));
             WWW www = new WWW("file://" + fileName);
             yield return www;
 
-            var obj = CreateNewObject(ObjectImagePrefab, "Image" + index++);
-            ((DraggableImageObject)obj).SetImage(www.texture);
+            Vector2 pos;
+            if (!objectPosition.TryGetValue(index, out pos))
+            {
+                Debug.LogError("This key is missing: " + index);
+                pos = new Vector2(Random.Range(0, Grid.NbCellsX), Random.Range(0, Grid.NbCellsY));
+            }
+            var obj = (DraggableImageObject) CreateNewObject(ObjectImagePrefab, "Image" + index, Grid.GetCellPosition(pos));
+            obj.SetGridPosition(pos);
+            obj.SetImage(www.texture);
             draggableObjects.Add(obj);
+            index++;
+            //Debug.Log(string.Format("Object created: {0}", obj.name));
         }
+        int imagesCount = draggableObjects.Count;
 
-        //   Texture[] sprites = GetTexturesFromFolder(ImagesPath);
-        //      foreach (var sprite in sprites) {
-        //	if (draggableObjects.Count >= MaxImages)
-        //		break;
 
-        //          var obj = CreateNewObject (ObjectImagePrefab, "Image" + index++);
-        //          ((DraggableImageObject) obj).SetImage (sprite);
-        //	draggableObjects.Add (obj);
-        //}
-
-        //var imageCount = draggableObjects.Count;
-        //MovieTexture[] movies = Resources.LoadAll<MovieTexture>(VideosPath);
-        //foreach (var movie in movies)
+        #region VIDEO_TODO (https://issuetracker.unity3d.com/issues/movietexture-fmod-error-when-trying-to-play-video-using-www-class)
+        //string[] fileEntries2 = Directory.GetFiles(VideosPath);
+        //foreach (string fileName2 in fileEntries2)
         //{
-        //    if (draggableObjects.Count - imageCount >= MaxVideos)
+        //    if (draggableObjects.Count - imagesCount >= MaxVideos)
         //        break;
+        //    if (!fileName2.EndsWith(".ogg", true, CultureInfo.InvariantCulture))
+        //        continue;
 
-        //    var obj = CreateNewObject(ObjectVideoPrefab, "Video");
-        //    ((DraggableVideoObject)obj).SetVideo(movie);
-        //    draggableObjects.Add(obj);
+        //    Debug.Log(string.Format("Importing: {0}", fileName2));
+
+        //    WWW www = new WWW("file://" + fileName2);
+        //    yield return www;
+        //    while (!www.isDone || !www.movie.isReadyToPlay)
+        //        yield return www;
+
+        //    //try
+        //    //{
+        //        var obj = CreateNewObject(ObjectVideoPrefab, "Video" + index++);
+        //        ((DraggableVideoObject) obj).SetVideo(www.movie);
+        //        draggableObjects.Add(obj);
+        //        Debug.Log(string.Format("Object created: {0}", obj.name));
+        //    //}
+        //    //catch (Exception e)
+        //    //{
+        //    //    Debug.Log(string.Format("Import of: {0} failed", fileName2));
+        //    //}
         //}
-        
-        this.UpdateLayers ();
-		this.UpdateMove (true);
+        #endregion
 
+
+        this.UpdateLayers ();
+
+        Debug.Log(string.Format("Init completed: {0} object created.", draggableObjects.Count));
         initCompleted = true;
 	}
     
 	void Update(){
-		this.UpdateMove (false);
+		this.UpdateMove ();
         if (Input.GetKey(KeyCode.Escape))
             Application.Quit();
     }
-
-    //Texture[] GetTexturesFromFolder(string imagesPath)
-    //{
-    //    List<Texture> textures = new List<Texture>();
-
-    //    var path = Application.dataPath + "/Resources/" + imagesPath;
-    //    string[] fileEntries = Directory.GetFiles(path);
-    //    foreach (string fileName in fileEntries)
-    //    {
-    //        if (fileName.EndsWith(".meta"))
-    //            continue;
-
-    //        byte[] fileData = File.ReadAllBytes(fileName);
-    //        Texture2D tex = new Texture2D(2, 2);
-    //        tex.LoadImage(fileData);
-    //        textures.Add(tex);
-    //    }
-
-    //    return textures.ToArray();
-    //}
-
-
-    //private WWW wwwData;
-    //MovieTexture[] GetMoviesFromFolder(string videosPath)
-    //{
-    //    List<MovieTexture> textures = new List<MovieTexture>();
-
-    //    var path = Application.dataPath + "/Resources/" + videosPath;
-    //    string[] fileEntries = Directory.GetFiles(path);
-    //    foreach (string fileName in fileEntries)
-    //    {
-    //        if (fileName.EndsWith(".meta"))
-    //            continue;
-            
-    //        WWW wwwData = new WWW("file:///" + fileName);
-    //        while (!wwwData.isDone) ;
-    //        textures.Add(wwwData.movie);
-    //    }
-
-    //    return textures.ToArray();
-    //}
-
-    //private IEnumerator WaitForDownload(string sURL)
-    //{
-    //    WWW wwwData = new WWW("file:///" + sURL);
-    //    yield return wwwData;
-    //}
-
-    /*
-    IEnumerator loadMovie(string fileName, List<MovieTexture> textures)
-    {
-        WWW www = new WWW("file:///" + fileName);
-        yield return www;
-        MovieTexture video = www.movie as MovieTexture;
-        textures.Add(video);
-    }*/
-
+    
     void ReadSchema()
     {
-        TextAsset textFile = (TextAsset)Resources.Load<TextAsset>(SchemaPath);
-        if (textFile == null)
+        string[] fileEntries = Directory.GetFiles(SchemaPath);
+        if (fileEntries.Length==0)
             return;
 
-        string text = textFile.text;
+        string text = File.ReadAllText(fileEntries[0]);
         var rows = text.Split('\n');
         if (rows.Length <= 0)
             return;
@@ -205,6 +215,7 @@ public class WallScript : MonoBehaviour {
             }
         }
         columnsCount = maxColumnsCount;
+        Debug.Log(string.Format("Schema imported with {0} objects", objCount));
     }
 
     private DraggableObject CreateNewObject(DraggableObject prefab, string objectName, Vector2 initialPosition)
@@ -221,10 +232,8 @@ public class WallScript : MonoBehaviour {
     {
 		// TODO: ugly, but... its a poc...
 		float posX = 0f, posY = 0f;
-		while(posX>=0f && posX<=RectTransform.sizeDelta.x && posY>=0f && posY<=RectTransform.sizeDelta.y){
-			posX = Random.Range(-InitialRange, RectTransform.sizeDelta.x + InitialRange);
-			posY = Random.Range(-InitialRange, RectTransform.sizeDelta.y + InitialRange);
-		}
+        posX = Random.Range(0, RectTransform.sizeDelta.x);
+        posY = Random.Range(0, RectTransform.sizeDelta.y);
         return CreateNewObject(prefab, objectName, new Vector2(posX, posY));
     }
 
@@ -244,30 +253,17 @@ public class WallScript : MonoBehaviour {
 	}
 
 
-	public void UpdateMove(bool updateAll)
+	public void UpdateMove()
 	{
-	    if (!draggableObjects.Any())
+	    if (!initCompleted)
 	        return;
 
-        if (updateAll)
-        {
-            var index = -1;
-            foreach (var obj in draggableObjects)
+        if (Random.Range (0, MovingProbabilty) == 0) {
+            var obj = draggableObjects [Random.Range (0, draggableObjects.Count - 1)];
+            if (!obj.IsAttCell())
             {
-                Vector2 pos;
-                if (!objectPosition.TryGetValue(++index, out pos))
-                {
-                    Debug.LogError("This key is missing: " + index);
-                    pos = new Vector2(Random.Range(0, Grid.NbCellsX), Random.Range(0, Grid.NbCellsY));
-                }
-                obj.SetGridPosition(pos);
+                obj.SetLastGridPosition();
             }
         }
-        else if (Random.Range (0, MovingProbabilty) == 0) {
-            //var pos = new Vector2 (Random.Range (0, Grid.NbCellsX), Random.Range (0, Grid.NbCellsY));
-            var obj = draggableObjects [Random.Range (0, draggableObjects.Count - 1)];
-            //if(!obj.IsAttCell())
-                obj.SetLastGridPosition();
-		}
 	}
 }
