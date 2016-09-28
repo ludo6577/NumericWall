@@ -55,6 +55,8 @@ namespace TouchScript.Layers
             hit = default(TouchHit);
             var raycastHits = Physics2D.GetRayIntersectionAll(ray, float.PositiveInfinity, LayerMask);
 
+            Debug.DrawRay(ray.origin, ray.direction, Color.green);
+
             if (raycastHits.Length == 0) return LayerHitResult.Miss;
             if (raycastHits.Length > 1)
             {

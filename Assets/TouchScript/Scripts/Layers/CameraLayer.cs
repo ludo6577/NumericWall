@@ -43,7 +43,7 @@ namespace TouchScript.Layers
         {
             hit = default(TouchHit);
             var raycastHits = Physics.RaycastAll(ray, float.PositiveInfinity, LayerMask);
-
+            
             if (raycastHits.Length == 0) return LayerHitResult.Miss;
             if (raycastHits.Length > 1)
             {

@@ -34,6 +34,8 @@ public class WallScript : MonoBehaviour
     public int MovingProbabilty;
 
     [Header("Prefab params")]
+    [Range(0f, 100f)]
+    public float Force = 4f;
     [Range(0f, 1000f)]
     public float Inertia = 50f;
     [Range(0f, 1000f)]
@@ -50,13 +52,6 @@ public class WallScript : MonoBehaviour
     public float LayersScaleFactor = 0.2f;
     [Range(0.1f, 1f)]
     public float LayersColorFactor = 0.2f;
-
-    private static WallScript instance;
-    public static WallScript Get()
-    {
-        return instance;
-    }
-
 
     private RectTransform _rectTransform;
 	public RectTransform RectTransform{
@@ -82,14 +77,14 @@ public class WallScript : MonoBehaviour
 
     void Awake()
     {
-        instance = this;
+        draggableObjects = new List<DraggableObject>();
         ResourcesPath = Application.dataPath + ResourcesPath; // Unity error if setted in class
         SchemaPath = ResourcesPath + SchemaPath;
         ImagesPath = ResourcesPath + ImagesPath;
         VideosPath = ResourcesPath + VideosPath;
     }
-    
-        
+
+
     IEnumerator Start ()
 	{
 	    ReadSchema();
@@ -101,9 +96,18 @@ public class WallScript : MonoBehaviour
 	            MaxImages = objCount;
             Debug.Log(string.Format("[Wall] Grid created: {0} rows, {1} columns", rowsCount, columnsCount));
         }
+		
+        yield return LoadImages();
+        yield return LoadVideos();
+        this.UpdateLayers ();
+        initCompleted = true;
 
+        Debug.Log(string.Format("[Wall] Init completed: {0} object created.", draggableObjects.Count));
+    }
+
+    IEnumerator LoadImages()
+    {
         var index = 0;
-		draggableObjects = new List<DraggableObject> ();
         string[] fileEntries = Directory.GetFiles(ImagesPath);
         foreach (string fileName in fileEntries)
         {
@@ -111,11 +115,11 @@ public class WallScript : MonoBehaviour
                 break;
             if (!(fileName.EndsWith(".jpg", true, CultureInfo.InvariantCulture) || fileName.EndsWith(".png", true, CultureInfo.InvariantCulture)))
                 continue;
-            
+
             Vector2 pos;
             if (objectPosition.TryGetValue(index, out pos))
             {
-                var obj = (DraggableImageObject) CreateNewObject(ObjectImagePrefab, "Image" + index, Grid.GetCellPosition(pos));
+                var obj = (DraggableImageObject)CreateNewObject(ObjectImagePrefab, "Image" + index, Grid.GetCellPosition(pos));
                 obj.SetGridPosition(pos);
                 WWW www = new WWW("file://" + fileName);
                 yield return www;
@@ -128,52 +132,41 @@ public class WallScript : MonoBehaviour
             }
             index++;
         }
-        int imagesCount = draggableObjects.Count;
-
-
-        #region VIDEO_TODO (https://issuetracker.unity3d.com/issues/movietexture-fmod-error-when-trying-to-play-video-using-www-class)
-        //string[] fileEntries2 = Directory.GetFiles(VideosPath);
-        //foreach (string fileName2 in fileEntries2)
-        //{
-        //    if (draggableObjects.Count - imagesCount >= MaxVideos)
-        //        break;
-        //    if (!fileName2.EndsWith(".ogg", true, CultureInfo.InvariantCulture))
-        //        continue;
-
-        //    Debug.Log(string.Format("Importing: {0}", fileName2));
-
-        //    WWW www = new WWW("file://" + fileName2);
-        //    yield return www;
-        //    while (!www.isDone || !www.movie.isReadyToPlay)
-        //        yield return www;
-
-        //    //try
-        //    //{
-        //        var obj = CreateNewObject(ObjectVideoPrefab, "Video" + index++);
-        //        ((DraggableVideoObject) obj).SetVideo(www.movie);
-        //        draggableObjects.Add(obj);
-        //        Debug.Log(string.Format("Object created: {0}", obj.name));
-        //    //}
-        //    //catch (Exception e)
-        //    //{
-        //    //    Debug.Log(string.Format("Import of: {0} failed", fileName2));
-        //    //}
-        //}
-        #endregion
-
-
-        this.UpdateLayers ();
-
-        Debug.Log(string.Format("[Wall] Init completed: {0} object created.", draggableObjects.Count));
-        initCompleted = true;
-	}
-    
-	void Update(){
-		this.UpdateMove ();
-        if (Input.GetKey(KeyCode.Escape))
-            Application.Quit();
     }
-    
+
+    IEnumerator LoadVideos()
+    {
+        #region VIDEO_TODO (https://issuetracker.unity3d.com/issues/movietexture-fmod-error-when-trying-to-play-video-using-www-class)
+        var index = 0;
+        string[] fileEntries2 = Directory.GetFiles(VideosPath);
+        foreach (string fileName2 in fileEntries2)
+        {
+            if (draggableObjects.Count - MaxImages >= MaxVideos)
+                break;
+            if (!fileName2.EndsWith(".ogg", true, CultureInfo.InvariantCulture))
+                continue;
+            
+            Vector2 pos;
+            if (objectPosition.TryGetValue(index, out pos))
+            {
+                var obj = CreateNewObject(ObjectVideoPrefab, "Video" + index, Grid.GetCellPosition(pos));
+                obj.SetGridPosition(pos);
+                WWW www = new WWW("file://" + fileName2);
+                while (!www.isDone || !www.movie.isReadyToPlay)
+                    yield return www;
+                ((DraggableVideoObject) obj).SetVideo(www.movie);
+                draggableObjects.Add(obj);
+                Debug.Log(string.Format("Object created: {0}", obj.name));
+            }
+            else
+            {
+                Debug.LogError(string.Format("[Wall] Index {0} missing in Schema", index));
+            }
+            index++;
+        }
+        #endregion
+    }
+
     void ReadSchema()
     {
         string[] fileEntries = Directory.GetFiles(SchemaPath);
@@ -187,23 +180,21 @@ public class WallScript : MonoBehaviour
 
         objectPosition = new Dictionary<int, Vector2>();
         objCount = 0;
-        var maxColumnsCount = 0;
+        columnsCount = 0;
         rowsCount = rows.Length-1; //last line empty
         for (var i = 0; i < rowsCount; i++)
         {
             var cells = rows[i].Split(';');
-            columnsCount = cells.Length;
-            if (columnsCount > maxColumnsCount)
-                maxColumnsCount = columnsCount;
+            if (cells.Length > columnsCount)
+                columnsCount = cells.Length;
 
-            for (var j = 0; j < columnsCount; j++)
+            for (var j = 0; j < cells.Length; j++)
             {
                 int value;
                 if (int.TryParse(cells[j], out value))
                 {
-                    //Debug.Log("val:" + value + ", x: " + i + ", y: " + (char) (j + 'a'));
                     if (objectPosition.ContainsKey(value))
-                        Debug.LogError("This key already exists: " + value);
+                        Debug.LogError("[Wall] Schema: this key already exists: " + value);
                     else
                         objectPosition.Add(value, new Vector2(j, i));
                     if (value+1 > objCount)
@@ -213,7 +204,6 @@ public class WallScript : MonoBehaviour
                 }
             }
         }
-        columnsCount = maxColumnsCount;
         Debug.Log(string.Format("[Wall] Schema imported with {0} objects", objCount));
     }
 
@@ -225,19 +215,15 @@ public class WallScript : MonoBehaviour
         return obj;
     }
 
-
-
-    private DraggableObject CreateNewObject(DraggableObject prefab, string objectName)
+    void Update()
     {
-		// TODO: ugly, but... its a poc...
-		float posX = 0f, posY = 0f;
-        posX = Random.Range(0, RectTransform.sizeDelta.x);
-        posY = Random.Range(0, RectTransform.sizeDelta.y);
-        return CreateNewObject(prefab, objectName, new Vector2(posX, posY));
+        this.UpdateMove();
+        // Exit the application
+        if (Input.GetKey(KeyCode.Escape))
+            Application.Quit();
     }
 
-
-	public void UpdateLayers(){
+    public void UpdateLayers(){
 		foreach (var obj in draggableObjects) {
 			var index = obj.transform.GetSiblingIndex ();
 			var length = draggableObjects.Count;
@@ -246,7 +232,7 @@ public class WallScript : MonoBehaviour
 				return;
 
 			var layerIndex = (int)(LayersCount - (((float)index / (float)(length-1)) * LayersCount));
-			layerIndex = (layerIndex <= 0 && index != length-1) ? 1 : layerIndex; //Only last element on layer 0
+			//layerIndex = (layerIndex <= 0 && index != length-1) ? 1 : layerIndex; //Only last element on layer 0
 			obj.SetLayer (layerIndex);
 		}
 	}
