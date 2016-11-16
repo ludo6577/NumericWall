@@ -188,7 +188,7 @@ public class DraggableObject : MonoBehaviour {
                 RigidBody2D.isKinematic = true;
                 idleTime = Time.time;
                 SetLayer(0);
-                wall.UpdateLayers();
+                //wall.UpdateLayers();
             break;
         }
     }
@@ -334,11 +334,16 @@ public class DraggableObject : MonoBehaviour {
 		if (this.layer != layerNumber)
 		{
             layer = layerNumber;
-            if (layerNumber == 0)
-                transform.SetAsLastSibling();
+		    if (layerNumber == 0)
+		        transform.SetAsLastSibling();
+		    //else
+		    //{
+		    //    var siblingIndex = (int) (((float) layerNumber/(float) (wall.LayersCount-1))*(float) wall.ObjectCount);
+            //    transform.SetSiblingIndex(siblingIndex);
+		    //}
 
-            var unityLayer = LayerMask.NameToLayer ("Layer" + layerNumber);
-			gameObject.layer = unityLayer >= 0 ? unityLayer : wall.LayersCount + 7;
+		    var unityLayer = LayerMask.NameToLayer ("Layer" + layerNumber);
+			gameObject.layer = unityLayer >= 0 ? unityLayer : 0;
 		    gameObject.name = GetObjectName();
 
             destinationScale = new Vector2(wall.InitialScale - (layerNumber * wall.LayersScaleFactor), wall.InitialScale - (layerNumber * wall.LayersScaleFactor));

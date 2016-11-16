@@ -5,27 +5,27 @@ using System.Collections.Generic;
 
 public class GridLayout : MonoBehaviour {
 
-	[Range(1, 100)]
-	public int NbCellsX = 10;
-	[Range(1, 100)]
-	public int NbCellsY = 10;
-
-	[Range(1, 300)]
+    [Range(1, 300)]
 	public float MargeX = 50f;
 	[Range(1, 300)]
 	public float MargeY = 50f;
 
 	[Range(0.01f, 1000)]
 	public float Speed = 10f;
-
-	//Design
-	public bool DrawGrid;
+    
+    //Design
+    public bool DrawGrid;
 	public bool DrawMovement;
 	public float LineWidth = 1;
 
 	public List <Vector2[]> MovingLine;
 
-	private WallScript Wall;
+    [HideInInspector]
+    public int NbCellsX = 10;
+    [HideInInspector]
+    public int NbCellsY = 10;
+
+    private WallScript Wall;
 
 
 	void Awake(){

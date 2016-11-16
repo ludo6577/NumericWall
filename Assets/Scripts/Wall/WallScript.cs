@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using UnityEngine.Assertions.Must;
+using UnityEngine.UI;
 using Random = UnityEngine.Random;
 
 
@@ -16,12 +17,18 @@ public class WallScript : MonoBehaviour
     public DraggableImageObject ObjectImagePrefab;
     public DraggableVideoObject ObjectVideoPrefab;
 
+    [Header("Draggable object parts")]
+    public GameObject Parts;
+
     [Header("Grid params")]
     public GridLayout Grid;
 
-    [Header("Init params")]
-    public int MaxImages;
-    public int MaxVideos;
+    [Header("Information panel")]
+    public GameObject InformationText;
+
+    //[Header("Init params")]
+    //public int MaxImages;
+    //public int MaxVideos;
 
     [Header("Canvas params")]
     [Range(1, 7)]
@@ -32,6 +39,8 @@ public class WallScript : MonoBehaviour
     public int InitialRange;
     [Range(1, 10000)]
     public int MovingProbabilty;
+    [Range(1, 10000)]
+    public int ChangeLayerProbabilty;
 
     [Header("Prefab params")]
     [Range(0f, 100f)]
@@ -62,6 +71,11 @@ public class WallScript : MonoBehaviour
 		}
 	}
 
+    public int ObjectCount
+    {
+        get { return draggableObjects.Count; }
+    }
+
     private static string ResourcesPath = "/../Resources/";
     private static string SchemaPath = "Schemas";
     private static string ImagesPath = "Pictures";
@@ -69,9 +83,9 @@ public class WallScript : MonoBehaviour
 	private List<DraggableObject> draggableObjects;
 
     private Dictionary<int, Vector2> objectPosition;
-    private int objCount;
-    private int rowsCount;
-    private int columnsCount;
+
+    private int imageCount;
+    private int videoCount;
 
     private bool initCompleted = false;
 
@@ -87,32 +101,28 @@ public class WallScript : MonoBehaviour
 
     IEnumerator Start ()
 	{
+        //Create the Dictionnary of positions and the Grid Width/Height 
 	    ReadSchema();
-	    if (objCount >= 0 && rowsCount > 0 && columnsCount > 0)
-	    {
-	        Grid.NbCellsX = columnsCount;
-            Grid.NbCellsY = rowsCount;
-	        if (MaxImages > objCount)
-	            MaxImages = objCount;
-            Debug.Log(string.Format("[Wall] Grid created: {0} rows, {1} columns", rowsCount, columnsCount));
-        }
 		
         yield return LoadImages();
         yield return LoadVideos();
+
         this.UpdateLayers ();
         initCompleted = true;
 
-        Debug.Log(string.Format("[Wall] Init completed: {0} object created.", draggableObjects.Count));
+        ShowInformation(string.Format("[Wall Init] completed: total of {0} object created.", draggableObjects.Count));
     }
 
     IEnumerator LoadImages()
     {
         var index = 0;
         string[] fileEntries = Directory.GetFiles(ImagesPath);
+
+        //Atlas test
+        //List<Texture2D> atlasTextures = new List<Texture2D>();
+
         foreach (string fileName in fileEntries)
         {
-            if (draggableObjects.Count >= MaxImages)
-                break;
             if (!(fileName.EndsWith(".jpg", true, CultureInfo.InvariantCulture) || fileName.EndsWith(".png", true, CultureInfo.InvariantCulture)))
                 continue;
 
@@ -123,26 +133,33 @@ public class WallScript : MonoBehaviour
                 obj.SetGridPosition(pos);
                 WWW www = new WWW("file://" + fileName);
                 yield return www;
+
+                //atlasTextures.Add(www.texture);
+
                 obj.SetImage(www.texture);
                 draggableObjects.Add(obj);
             }
             else
             {
-                Debug.LogError(string.Format("[Wall] Index {0} missing in Schema", index));
+                ShowError(string.Format("[Load Image] Index {0} missing in Schema", index));
             }
             index++;
         }
+
+        //Texture2D atlas = new Texture2D(8192, 8192);
+        //var rects = atlas.PackTextures(atlasTextures.ToArray(), 2, 8192);
+
+        imageCount = index;
+        ShowInformation(string.Format("[Load Image] {0} Images imported.", imageCount));
     }
 
     IEnumerator LoadVideos()
     {
-        #region VIDEO_TODO (https://issuetracker.unity3d.com/issues/movietexture-fmod-error-when-trying-to-play-video-using-www-class)
-        var index = 0;
+        var index = imageCount;
         string[] fileEntries2 = Directory.GetFiles(VideosPath);
+
         foreach (string fileName2 in fileEntries2)
         {
-            if (draggableObjects.Count - MaxImages >= MaxVideos)
-                break;
             if (!fileName2.EndsWith(".ogg", true, CultureInfo.InvariantCulture))
                 continue;
             
@@ -156,62 +173,78 @@ public class WallScript : MonoBehaviour
                     yield return www;
                 ((DraggableVideoObject) obj).SetVideo(www.movie);
                 draggableObjects.Add(obj);
-                Debug.Log(string.Format("Object created: {0}", obj.name));
             }
             else
             {
-                Debug.LogError(string.Format("[Wall] Index {0} missing in Schema", index));
+                ShowError(string.Format("[Load Video] Index {0} missing in Schema", index));
             }
             index++;
         }
-        #endregion
+
+        videoCount = index - imageCount;
+        ShowInformation(string.Format("[Load Video] {0} Video imported.", videoCount));
     }
 
     void ReadSchema()
     {
-        string[] fileEntries = Directory.GetFiles(SchemaPath);
-        if (fileEntries.Length==0)
-            return;
-
-        string text = File.ReadAllText(fileEntries[0]);
-        var rows = text.Split('\n');
-        if (rows.Length <= 0)
-            return;
-
-        objectPosition = new Dictionary<int, Vector2>();
-        objCount = 0;
-        columnsCount = 0;
-        rowsCount = rows.Length-1; //last line empty
-        for (var i = 0; i < rowsCount; i++)
+        try
         {
-            var cells = rows[i].Split(';');
-            if (cells.Length > columnsCount)
-                columnsCount = cells.Length;
+            string[] fileEntries = Directory.GetFiles(SchemaPath);
+            if (fileEntries.Length == 0)
+                return;
 
-            for (var j = 0; j < cells.Length; j++)
+            string text = File.ReadAllText(fileEntries[0]);
+            var rows = text.Split('\n');
+            if (rows.Length <= 0)
+                return;
+
+            objectPosition = new Dictionary<int, Vector2>();
+            var objCount = 0;
+            var columnsCount = 0;
+            var rowsCount = rows.Length - 1; //last line empty
+            for (var i = 0; i < rowsCount; i++)
             {
-                int value;
-                if (int.TryParse(cells[j], out value))
+                var cells = rows[i].Split(';');
+                if (cells.Length > columnsCount)
+                    columnsCount = cells.Length;
+
+                for (var j = 0; j < cells.Length; j++)
                 {
-                    if (objectPosition.ContainsKey(value))
-                        Debug.LogError("[Wall] Schema: this key already exists: " + value);
-                    else
-                        objectPosition.Add(value, new Vector2(j, i));
-                    if (value+1 > objCount)
+                    int value;
+                    if (int.TryParse(cells[j], out value))
                     {
-                        objCount = value+1;
+                        if (objectPosition.ContainsKey(value))
+                        {
+                            var msg = "[Schema] Key already exists: " + value;
+                            Debug.LogError(msg);
+                            ShowError(msg);
+                        }
+                        else
+                            objectPosition.Add(value, new Vector2(j, i));
+                        if (value + 1 > objCount)
+                        {
+                            objCount = value + 1;
+                        }
                     }
                 }
             }
+
+            Grid.NbCellsX = columnsCount;
+            Grid.NbCellsY = rowsCount;
+            ShowInformation(string.Format("[Load Schema] {0} rows, {1} columns", rowsCount, columnsCount));
+            ShowInformation(string.Format("[Load Schema] {0} objects", objCount));
         }
-        Debug.Log(string.Format("[Wall] Schema imported with {0} objects", objCount));
+        catch (Exception e)
+        {
+            ShowError(string.Format("[Load Schema] Error reading file: {0}. Does this file exist and not opened in another application?", SchemaPath));
+        }
     }
 
     private DraggableObject CreateNewObject(DraggableObject prefab, string objectName, Vector2 initialPosition)
     {
         Vector2 center = new Vector2(RectTransform.sizeDelta.x / 2, RectTransform.sizeDelta.y / 2);
         var obj = (DraggableObject)Instantiate(prefab, initialPosition, prefab.transform.rotation);
-        obj.Init(transform, this, objectName);
+        obj.Init(Parts.transform, this, objectName);
         return obj;
     }
 
@@ -231,10 +264,10 @@ public class WallScript : MonoBehaviour
 			if(length <= 1)
 				return;
 
-			var layerIndex = (int)(LayersCount - (((float)index / (float)(length-1)) * LayersCount));
+			var layerIndex = LayersCount - (((float)index / (float)(length-1)) * (float)LayersCount);
 			//layerIndex = (layerIndex <= 0 && index != length-1) ? 1 : layerIndex; //Only last element on layer 0
-			obj.SetLayer (layerIndex);
-		}
+			obj.SetLayer ((int)layerIndex);
+        }
 	}
 
 
@@ -250,5 +283,49 @@ public class WallScript : MonoBehaviour
                 obj.SetLastGridPosition();
             }
         }
-	}
+
+        if (Random.Range(0, ChangeLayerProbabilty) == 0)
+        {
+            var obj = draggableObjects[Random.Range(0, draggableObjects.Count - 1)];
+            obj.SetLayer(0);
+            UpdateLayers();
+        }
+    }
+    
+
+    public void ShowError(string message)
+    {
+        Debug.LogError(message);
+        ShowMessage(message, "#ff0000ff");   
+    }
+
+    public void ShowInformation(string message)
+    {
+        Debug.Log(message);
+        ShowMessage(message, "#ffffffff");
+    }
+
+
+    private IEnumerator closeInformationPanel = null;
+    private void ShowMessage(string message, string color)
+    {
+        InformationText.gameObject.SetActive(true);
+        var text = InformationText.GetComponentInChildren<Text>();
+        text.text += string.Format("<color={0}>{1}</color>{2}", color, message, Environment.NewLine);
+
+        if (closeInformationPanel != null)
+            StopCoroutine(closeInformationPanel);
+        closeInformationPanel = CloseInformationPanel();
+        StartCoroutine(closeInformationPanel);
+    }
+    
+    IEnumerator CloseInformationPanel()
+    {
+        yield return new WaitForSeconds(10f);
+
+        var text = InformationText.GetComponentInChildren<Text>();
+        text.text = "";
+        InformationText.gameObject.SetActive(false);
+        closeInformationPanel = null;
+    }
 }

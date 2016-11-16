@@ -12,22 +12,28 @@ using TouchScript.Utils;
 public class DraggableVideoObject : DraggableImageObject
 {
 	private MovieTexture movie;
+    private Image playButton;
 
-	public void SetVideo(MovieTexture texture){
+    public void SetVideo(MovieTexture texture){
         StartCoroutine(DoSetVideo(texture));
-    }
+	}
 
     IEnumerator DoSetVideo(MovieTexture texture)
     {
+        //We need the video to play before we can get his size
         while (!texture.isPlaying)
         {
             texture.Play();
             yield return null;
         }
+        texture.Stop();
 
         movie = texture;
+        movie.loop = true;
         var videoObject = GetComponentInChildren<VideoObject>();
         videoObject.SetVideo(texture);
+
+        playButton = GetComponentInChildren<Image>();
 
         var collider = GetComponent<BoxCollider2D>();
         var ratioX = (float)texture.width / texture.height;
@@ -60,10 +66,12 @@ public class DraggableVideoObject : DraggableImageObject
 
 	private void tappedHandler(object sender, EventArgs e){
 		if (movie.isPlaying) {
-			movie.Pause();
+            playButton.gameObject.SetActive(true);
+            movie.Pause();
 		}
 		else {
-			movie.Play();
+            playButton.gameObject.SetActive(false);
+            movie.Play();
 		}
 	}
 }
