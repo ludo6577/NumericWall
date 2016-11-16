@@ -118,8 +118,8 @@ public class WallScript : MonoBehaviour
         var index = 0;
         string[] fileEntries = Directory.GetFiles(ImagesPath);
 
-        //Atlas test
-        //List<Texture2D> atlasTextures = new List<Texture2D>();
+        //Atlas
+        List<Texture2D> atlasTextures = new List<Texture2D>();
 
         foreach (string fileName in fileEntries)
         {
@@ -134,9 +134,10 @@ public class WallScript : MonoBehaviour
                 WWW www = new WWW("file://" + fileName);
                 yield return www;
 
-                //atlasTextures.Add(www.texture);
+                //Atlas
+                atlasTextures.Add(www.texture);
 
-                obj.SetImage(www.texture);
+                //obj.SetImage(www.texture);
                 draggableObjects.Add(obj);
             }
             else
@@ -146,8 +147,13 @@ public class WallScript : MonoBehaviour
             index++;
         }
 
-        //Texture2D atlas = new Texture2D(8192, 8192);
-        //var rects = atlas.PackTextures(atlasTextures.ToArray(), 2, 8192);
+        //Atlas
+        Texture2D atlas = new Texture2D(1024, 1024);
+        var rects = atlas.PackTextures(atlasTextures.ToArray(), 2, 1024);
+        for (var i = 0; i<draggableObjects.Count; i++)
+        {
+            ((DraggableImageObject)draggableObjects[i]).SetImage(atlas, rects[i]);
+        }
 
         imageCount = index;
         ShowInformation(string.Format("[Load Image] {0} Images imported.", imageCount));
