@@ -607,7 +607,6 @@ GameObject:
   - component: {fileID: 1676502215}
   - component: {fileID: 1676502214}
   - component: {fileID: 1676502213}
-  - component: {fileID: 1676502212}
   - component: {fileID: 1676502217}
   m_Layer: 0
   m_Name: Main Camera
@@ -616,13 +615,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!81 &1676502212
-AudioListener:
-  m_ObjectHideFlags: 0
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 1676502211}
-  m_Enabled: 1
 --- !u!124 &1676502213
 Behaviour:
   m_ObjectHideFlags: 0
@@ -733,7 +725,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 1024, y: 189}
+  m_SizeDelta: {x: 1025, y: 189}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1757572897
 MonoBehaviour:
@@ -756,7 +748,7 @@ MonoBehaviour:
       Version=1.0.0.0, Culture=neutral, PublicKeyToken=null
   m_Sprite: {fileID: 21300000, guid: d742ed22eccc2ad46ac078964ef7382c, type: 3}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1

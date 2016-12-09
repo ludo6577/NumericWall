@@ -22,7 +22,7 @@ public class WallScript : MonoBehaviour
 
     [Header("Grid params")]
     public GridLayout Grid;
-
+    
     [Header("Information panel")]
     public GameObject InformationText;
 
@@ -102,7 +102,7 @@ public class WallScript : MonoBehaviour
     IEnumerator Start ()
 	{
         //Create the Dictionnary of positions and the Grid Width/Height 
-	    ReadSchema();
+        ReadSchema();
 		
         yield return LoadImages();
         yield return LoadVideos();
@@ -133,12 +133,12 @@ public class WallScript : MonoBehaviour
                 obj.SetGridPosition(pos);
                 WWW www = new WWW("file://" + fileName);
                 yield return www;
-
+                
                 //Atlas
                 atlasTextures.Add(www.texture);
-
-                //obj.SetImage(www.texture);
                 draggableObjects.Add(obj);
+                
+                //obj.SetImage(www.texture);
             }
             else
             {
@@ -148,11 +148,25 @@ public class WallScript : MonoBehaviour
         }
 
         //Atlas
-        Texture2D atlas = new Texture2D(1024, 1024);
-        var rects = atlas.PackTextures(atlasTextures.ToArray(), 2, 1024);
-        for (var i = 0; i<draggableObjects.Count; i++)
+        var textureSize = 4096;
+        Texture2D atlas = new Texture2D(textureSize, textureSize);
+        var rects = atlas.PackTextures(atlasTextures.ToArray(), 10, textureSize);
+
+        var marge = 0.001f;
+        for (var i = 0; i < atlas.width; i++)
         {
-            ((DraggableImageObject)draggableObjects[i]).SetImage(atlas, rects[i]);
+            for (var j = 0; j < atlas.height; j++)
+            {
+                var pixel = atlas.GetPixel(i, j);
+                if (pixel == new Color(pixel.r, pixel.g, pixel.b, 0f))
+                    atlas.SetPixel(i, j, Color.white);
+            }
+        }
+        atlas.Apply();
+
+        for (var i = 0; i < draggableObjects.Count; i++)
+        {
+            ((DraggableImageObject)draggableObjects[i]).SetImage(atlas, new Rect(rects[i].x - marge, rects[i].y - marge, rects[i].width + marge * 2, rects[i].height + marge * 2));
         }
 
         imageCount = index;
@@ -301,14 +315,18 @@ public class WallScript : MonoBehaviour
 
     public void ShowError(string message)
     {
+//#if UNITY_EDITOR
         Debug.LogError(message);
-        ShowMessage(message, "#ff0000ff");   
+        ShowMessage(message, "#ff0000ff");
+//#endif
     }
 
     public void ShowInformation(string message)
     {
+#if UNITY_EDITOR
         Debug.Log(message);
         ShowMessage(message, "#ffffffff");
+#endif
     }
 
 

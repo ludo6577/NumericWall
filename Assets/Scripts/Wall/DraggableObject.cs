@@ -116,10 +116,11 @@ public class DraggableObject : MonoBehaviour {
         this.isTriggered = false;
         //this.scaleImmediatly = false;
         this.wall = wall;
-		this.layer = -1;
-
+        this.layer = -1;
         var collider = GetComponent<BoxCollider2D>();
         collider.isTrigger = true;
+
+        destinationScale = transform.localScale;
     }
 
 	public void Update(){
@@ -267,7 +268,7 @@ public class DraggableObject : MonoBehaviour {
 			transform.localScale = new Vector2(transform.localScale.x, wall.MaxScale);
 		if (transform.localScale.y <= wall.MinScale)
 			transform.localScale = new Vector2(transform.localScale.x, wall.MinScale);
-
+        
         // Get back to normal scale
         if (CurrentState != ObjectState.Transformed && /*CurrentState != ObjectState.Launched &&*/ Mathf.Abs(transform.localScale.x - destinationScale.x) > 0.01f)
         {
@@ -318,10 +319,6 @@ public class DraggableObject : MonoBehaviour {
             var diff = 0.01f;
             rgb = rgb > destinationColor ? rgb - diff : rgb + diff;
             Image.color = new Color(rgb, rgb, rgb, 1f);
-
-            //TODO VIDEO
-            if(ChildImage!=null)
-                ChildImage.color = new Color(rgb, rgb, rgb, 1f);
         }
     }
 
