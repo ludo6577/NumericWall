@@ -13,6 +13,11 @@ using Random = UnityEngine.Random;
 
 public class WallScript : MonoBehaviour
 {
+    private static string ResourcesPath = "/../Resources/";
+    private static string SchemaPath = "Schemas";
+    private static string ImagesPath = "Pictures";
+    private static string VideosPath = "Videos";
+
     [Header("Prefabs")]
     public DraggableImageObject ObjectImagePrefab;
     public DraggableVideoObject ObjectVideoPrefab;
@@ -25,10 +30,12 @@ public class WallScript : MonoBehaviour
     
     [Header("Information panel")]
     public GameObject InformationText;
-
-    //[Header("Init params")]
-    //public int MaxImages;
-    //public int MaxVideos;
+    
+    [Header("Images Atlas params")]
+    public int MaximumAtlasSize = 8192;
+    public float AtlasMargin = 0.001f;
+    [Tooltip("Use this Image to show the atlas in editor")]
+    public RawImage DebugAtlas;
 
     [Header("Canvas params")]
     [Range(1, 7)]
@@ -62,27 +69,16 @@ public class WallScript : MonoBehaviour
     [Range(0.1f, 1f)]
     public float LayersColorFactor = 0.2f;
 
-    private RectTransform _rectTransform;
+    private RectTransform rectTransform;
 	public RectTransform RectTransform{
 		get{ 
-			if(_rectTransform == null)
-				_rectTransform = GetComponent<RectTransform> ();
-			return _rectTransform; 
+			if(rectTransform == null)
+				rectTransform = GetComponent<RectTransform> ();
+			return rectTransform; 
 		}
 	}
 
-    public int ObjectCount
-    {
-        get { return draggableObjects.Count; }
-    }
-
-    private static string ResourcesPath = "/../Resources/";
-    private static string SchemaPath = "Schemas";
-    private static string ImagesPath = "Pictures";
-	private static string VideosPath = "Videos";
 	private List<DraggableObject> draggableObjects;
-
-    private Dictionary<int, Vector2> objectPosition;
 
     private int imageCount;
     private int videoCount;
@@ -98,127 +94,89 @@ public class WallScript : MonoBehaviour
         VideosPath = ResourcesPath + VideosPath;
     }
 
-
     IEnumerator Start ()
 	{
         //Create the Dictionnary of positions and the Grid Width/Height 
-        ReadSchema();
+        Dictionary<int, Vector2> objectsPositions = ReadSchema();
 		
-        yield return LoadImages();
-        yield return LoadVideos();
+        yield return LoadImages(objectsPositions);
+        yield return LoadVideos(objectsPositions);
 
-        this.UpdateLayers ();
+        UpdateLayers ();
         initCompleted = true;
 
         ShowInformation(string.Format("[Wall Init] completed: total of {0} object created.", draggableObjects.Count));
     }
 
-    IEnumerator LoadImages()
-    {
-        var index = 0;
-        string[] fileEntries = Directory.GetFiles(ImagesPath);
+    void Update()
+    { 
+        // Exit the application
+        if (Input.GetKey(KeyCode.Escape))
+            Application.Quit();
 
-        //Atlas
-        List<Texture2D> atlasTextures = new List<Texture2D>();
+        if (!initCompleted)
+            return;
 
-        foreach (string fileName in fileEntries)
+        /*
+         * Make the wall a little more interactive
+         */
+        // 1) Randomly Move images to initial position
+        if (Random.Range(0, MovingProbabilty) == 0)
         {
-            if (!(fileName.EndsWith(".jpg", true, CultureInfo.InvariantCulture) || fileName.EndsWith(".png", true, CultureInfo.InvariantCulture)))
-                continue;
-
-            Vector2 pos;
-            if (objectPosition.TryGetValue(index, out pos))
+            var obj = draggableObjects[Random.Range(0, draggableObjects.Count - 1)];
+            if (!obj.IsAttCell())
             {
-                var obj = (DraggableImageObject)CreateNewObject(ObjectImagePrefab, "Image" + index, Grid.GetCellPosition(pos));
-                obj.SetGridPosition(pos);
-                WWW www = new WWW("file://" + fileName);
-                yield return www;
-                
-                //Atlas
-                atlasTextures.Add(www.texture);
-                draggableObjects.Add(obj);
-                
-                //obj.SetImage(www.texture);
-            }
-            else
-            {
-                ShowError(string.Format("[Load Image] Index {0} missing in Schema", index));
-            }
-            index++;
-        }
-
-        //Atlas
-        var textureSize = 4096;
-        Texture2D atlas = new Texture2D(textureSize, textureSize);
-        var rects = atlas.PackTextures(atlasTextures.ToArray(), 10, textureSize);
-
-        var marge = 0.001f;
-        for (var i = 0; i < atlas.width; i++)
-        {
-            for (var j = 0; j < atlas.height; j++)
-            {
-                var pixel = atlas.GetPixel(i, j);
-                if (pixel == new Color(pixel.r, pixel.g, pixel.b, 0f))
-                    atlas.SetPixel(i, j, Color.white);
+                obj.SetLastGridPosition();
             }
         }
-        atlas.Apply();
-
-        for (var i = 0; i < draggableObjects.Count; i++)
-        {
-            ((DraggableImageObject)draggableObjects[i]).SetImage(atlas, new Rect(rects[i].x - marge, rects[i].y - marge, rects[i].width + marge * 2, rects[i].height + marge * 2));
-        }
-
-        imageCount = index;
-        ShowInformation(string.Format("[Load Image] {0} Images imported.", imageCount));
+        // 2) Randomly change the layer of each image
+        // TODO: Layer system do not works ! The simblingIndex is not updated (collision between layers is setted in the Unity's Physics options)
+        //if (Random.Range(0, ChangeLayerProbabilty) == 0)
+        //{
+        //    var obj = draggableObjects[Random.Range(0, draggableObjects.Count - 1)];
+        //    obj.SetLayer(0);
+        //    UpdateLayers();
+        //}
     }
-
-    IEnumerator LoadVideos()
+    
+    /*
+     * Update the layers index of each images
+     * (Images on same Layers collides with each others)
+     */
+    public void UpdateLayers()
     {
-        var index = imageCount;
-        string[] fileEntries2 = Directory.GetFiles(VideosPath);
-
-        foreach (string fileName2 in fileEntries2)
+        foreach (var obj in draggableObjects)
         {
-            if (!fileName2.EndsWith(".ogg", true, CultureInfo.InvariantCulture))
-                continue;
-            
-            Vector2 pos;
-            if (objectPosition.TryGetValue(index, out pos))
-            {
-                var obj = CreateNewObject(ObjectVideoPrefab, "Video" + index, Grid.GetCellPosition(pos));
-                obj.SetGridPosition(pos);
-                WWW www = new WWW("file://" + fileName2);
-                while (!www.isDone || !www.movie.isReadyToPlay)
-                    yield return www;
-                ((DraggableVideoObject) obj).SetVideo(www.movie);
-                draggableObjects.Add(obj);
-            }
-            else
-            {
-                ShowError(string.Format("[Load Video] Index {0} missing in Schema", index));
-            }
-            index++;
+            var length = draggableObjects.Count;
+            if (length <= 0)
+                return;
+
+            var index = obj.transform.GetSiblingIndex();
+            var layerIndex = LayersCount - (((float)(index + 1) / (float)length) * (float)LayersCount);
+            obj.SetLayer((int)layerIndex);
         }
-
-        videoCount = index - imageCount;
-        ShowInformation(string.Format("[Load Video] {0} Video imported.", videoCount));
     }
+    
 
-    void ReadSchema()
+
+
+    /*
+     * Read the schema
+     */
+    private Dictionary<int, Vector2> ReadSchema()
     {
         try
         {
             string[] fileEntries = Directory.GetFiles(SchemaPath);
             if (fileEntries.Length == 0)
-                return;
+                return null;
 
             string text = File.ReadAllText(fileEntries[0]);
             var rows = text.Split('\n');
             if (rows.Length <= 0)
-                return;
+                return null;
 
-            objectPosition = new Dictionary<int, Vector2>();
+            var objectsPositions = new Dictionary<int, Vector2>();
             var objCount = 0;
             var columnsCount = 0;
             var rowsCount = rows.Length - 1; //last line empty
@@ -233,14 +191,14 @@ public class WallScript : MonoBehaviour
                     int value;
                     if (int.TryParse(cells[j], out value))
                     {
-                        if (objectPosition.ContainsKey(value))
+                        if (objectsPositions.ContainsKey(value))
                         {
                             var msg = "[Schema] Key already exists: " + value;
                             Debug.LogError(msg);
                             ShowError(msg);
                         }
                         else
-                            objectPosition.Add(value, new Vector2(j, i));
+                            objectsPositions.Add(value, new Vector2(j, i));
                         if (value + 1 > objCount)
                         {
                             objCount = value + 1;
@@ -253,13 +211,137 @@ public class WallScript : MonoBehaviour
             Grid.NbCellsY = rowsCount;
             ShowInformation(string.Format("[Load Schema] {0} rows, {1} columns", rowsCount, columnsCount));
             ShowInformation(string.Format("[Load Schema] {0} objects", objCount));
+
+            return objectsPositions;
         }
         catch (Exception e)
         {
             ShowError(string.Format("[Load Schema] Error reading file: {0}. Does this file exist and not opened in another application?", SchemaPath));
+            return null;
         }
     }
 
+    /*
+     *  Load the images from files and create an atlas from them to significally improve performance
+     */
+    private IEnumerator LoadImages(Dictionary<int, Vector2> objectsPositions)
+    {
+        var index = 0;
+        string[] fileEntries = Directory.GetFiles(ImagesPath);
+
+        //Atlas
+        List<Texture2D> textures = new List<Texture2D>();
+
+        foreach (string fileName in fileEntries)
+        {
+            if (!(fileName.EndsWith(".jpg", true, CultureInfo.InvariantCulture) || fileName.EndsWith(".png", true, CultureInfo.InvariantCulture)))
+                continue;
+
+            Vector2 pos;
+            if (objectsPositions.TryGetValue(index, out pos))
+            {
+                // Create the draggable object
+                var obj = (DraggableImageObject)CreateNewObject(ObjectImagePrefab, "Image" + index, Grid.GetCellPosition(pos));
+                obj.SetGridPosition(pos);
+                draggableObjects.Add(obj);
+                
+                // Get texture from file
+                WWW www = new WWW("file://" + fileName);
+                yield return www;
+                textures.Add(www.texture);
+            }
+            else
+            {
+                ShowError(string.Format("[Load Image] Index {0} missing in Schema", index));
+            }
+            index++;
+        }
+
+        createImagesAtlas(textures);
+
+        imageCount = index;
+        ShowInformation(string.Format("[Load Image] {0} Images imported.", imageCount));
+    }
+
+    /* 
+     * Create an Atlas (improve performance, only one drawcall needed to show all images!)
+     */
+    private void createImagesAtlas(List<Texture2D> textures)
+    {
+        // Create the Atlas
+        Texture2D atlas = new Texture2D(MaximumAtlasSize, MaximumAtlasSize);
+        var rects = atlas.PackTextures(textures.ToArray(), 10, MaximumAtlasSize);
+
+        // Draw white margin (instead of transparent)
+        for (var i = 0; i < atlas.width; i++)
+        {
+            for (var j = 0; j < atlas.height; j++)
+            {
+                var pixel = atlas.GetPixel(i, j);
+                if (pixel == new Color(pixel.r, pixel.g, pixel.b, 0f)) //Transparent?
+                    atlas.SetPixel(i, j, Color.white);
+            }
+        }
+        atlas.Apply();
+
+        // Used to see the Atlas
+        if (DebugAtlas != null && DebugAtlas.IsActive())
+        {
+#if UNITY_EDITOR
+            DebugAtlas.texture = atlas;
+#else
+            DebugAtlas.gameObject.SetActive(false);
+#endif
+        }
+
+        // Then apply the atlas texture to 
+        for (var i = 0; i < draggableObjects.Count; i++)
+        {
+            ((DraggableImageObject)draggableObjects[i]).SetImage(atlas, new Rect(rects[i].x - AtlasMargin, rects[i].y - AtlasMargin, rects[i].width + AtlasMargin * 2, rects[i].height + AtlasMargin * 2));
+        }
+    }
+
+    /*
+     * Load the video from files (no performances improvment, can't do atlas from them)
+     */
+    private IEnumerator LoadVideos(Dictionary<int, Vector2> objectsPositions)
+    {
+        var index = imageCount;
+        string[] fileEntries2 = Directory.GetFiles(VideosPath);
+
+        foreach (string fileName2 in fileEntries2)
+        {
+            if (!fileName2.EndsWith(".ogg", true, CultureInfo.InvariantCulture))
+                continue;
+            
+            Vector2 pos;
+            if (objectsPositions.TryGetValue(index, out pos))
+            {
+                // Create the draggable object
+                var obj = CreateNewObject(ObjectVideoPrefab, "Video" + index, Grid.GetCellPosition(pos));
+                obj.SetGridPosition(pos);
+                draggableObjects.Add(obj);
+
+                // Get the video from file
+                WWW www = new WWW("file://" + fileName2);
+                while (!www.isDone || !www.movie.isReadyToPlay)
+                    yield return www;
+                ((DraggableVideoObject) obj).SetVideo(www.movie);
+            }
+            else
+            {
+                ShowError(string.Format("[Load Video] Index {0} missing in Schema", index));
+            }
+            index++;
+        }
+
+        videoCount = index - imageCount;
+        ShowInformation(string.Format("[Load Video] {0} Video imported.", videoCount));
+    }
+    
+    /*
+     *  Instantiate a the Draggable base object
+     */
     private DraggableObject CreateNewObject(DraggableObject prefab, string objectName, Vector2 initialPosition)
     {
         Vector2 center = new Vector2(RectTransform.sizeDelta.x / 2, RectTransform.sizeDelta.y / 2);
@@ -268,51 +350,10 @@ public class WallScript : MonoBehaviour
         return obj;
     }
 
-    void Update()
-    {
-        this.UpdateMove();
-        // Exit the application
-        if (Input.GetKey(KeyCode.Escape))
-            Application.Quit();
-    }
-
-    public void UpdateLayers(){
-		foreach (var obj in draggableObjects) {
-			var index = obj.transform.GetSiblingIndex ();
-			var length = draggableObjects.Count;
-
-			if(length <= 1)
-				return;
-
-			var layerIndex = LayersCount - (((float)index / (float)(length-1)) * (float)LayersCount);
-			//layerIndex = (layerIndex <= 0 && index != length-1) ? 1 : layerIndex; //Only last element on layer 0
-			obj.SetLayer ((int)layerIndex);
-        }
-	}
-
-
-	public void UpdateMove()
-	{
-	    if (!initCompleted)
-	        return;
-
-        if (Random.Range (0, MovingProbabilty) == 0) {
-            var obj = draggableObjects [Random.Range (0, draggableObjects.Count - 1)];
-            if (!obj.IsAttCell())
-            {
-                obj.SetLastGridPosition();
-            }
-        }
-
-        if (Random.Range(0, ChangeLayerProbabilty) == 0)
-        {
-            var obj = draggableObjects[Random.Range(0, draggableObjects.Count - 1)];
-            obj.SetLayer(0);
-            UpdateLayers();
-        }
-    }
     
-
+    /*
+     *  Show messages on the wall (Errors, Informations, ...)
+     */
     public void ShowError(string message)
     {
 //#if UNITY_EDITOR
@@ -343,7 +384,7 @@ public class WallScript : MonoBehaviour
         StartCoroutine(closeInformationPanel);
     }
     
-    IEnumerator CloseInformationPanel()
+    private IEnumerator CloseInformationPanel()
     {
         yield return new WaitForSeconds(10f);
 

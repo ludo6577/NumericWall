@@ -13,7 +13,7 @@ public enum ObjectState{
 }
 
 
-public class DraggableObject : MonoBehaviour {
+public abstract class DraggableObject : MonoBehaviour {
 
     /*
 	 * 	Public variables
@@ -47,20 +47,16 @@ public class DraggableObject : MonoBehaviour {
         }
     }
 
-    private bool isTriggered;
-
     /*
 	 * Private variables
 	 */
-    private string draggableObjectName;
     private WallScript wall;
-	private int layer;
+    private int layer;
+    private string draggableObjectName;
 	private Vector2 destinationPosition;
     private Vector2 destinationScale;
-    //private bool scaleImmediatly;
-
     private float destinationColor;
-
+    private bool isTriggered;
     private float idleTime;
 
     /*
@@ -91,6 +87,8 @@ public class DraggableObject : MonoBehaviour {
         {
             if (_image == null)
                 _image = GetComponent<RawImage>();
+            if(_image == null) //Still null
+                _image = GetComponentInChildren<RawImage>();
             return _image;
         }
     }
@@ -107,22 +105,21 @@ public class DraggableObject : MonoBehaviour {
     }
 
     /*
-	 * 	Start / Update
+	 * 	Init is called at the image loading
 	 */
-    public void Init(Transform parent, WallScript wall, string name){
+    public void Init(Transform parent, WallScript wallScript, string objectName){
 		this.transform.SetParent(parent, false);
+        this.wall = wallScript;
+        this.draggableObjectName = objectName;
+
         this.CurrentState = ObjectState.Idle;
-        this.draggableObjectName = name;
         this.isTriggered = false;
-        //this.scaleImmediatly = false;
-        this.wall = wall;
         this.layer = -1;
-        var collider = GetComponent<BoxCollider2D>();
-        collider.isTrigger = true;
 
         destinationScale = transform.localScale;
     }
 
+    // Update the state machine
 	public void Update(){
 		if (wall == null)
 			return;
@@ -178,7 +175,7 @@ public class DraggableObject : MonoBehaviour {
         GetComponent<TransformGesture>().StateChanged -= transformStateChangedHandler;
 	}
     
-    // On press
+    // Press
     private void pressStateChangedHandler(object sender, GestureStateChangeEventArgs e)
     {
         //Debug.Log(e.State);
@@ -193,6 +190,8 @@ public class DraggableObject : MonoBehaviour {
             break;
         }
     }
+
+    // Release
     private void releaseStateChangedHandler(object sender, GestureStateChangeEventArgs e)
     {
         //Debug.Log(e.State);
@@ -205,6 +204,8 @@ public class DraggableObject : MonoBehaviour {
                 break;
         }
     }
+
+    // Moved
     private void transformStateChangedHandler(object sender, GestureStateChangeEventArgs e)
     {
         //Debug.Log(e.State);
@@ -227,12 +228,11 @@ public class DraggableObject : MonoBehaviour {
 
     }
 
-
-    // Collision with other object
+    // Collision
     public void OnTriggerStay2D(Collider2D other)
     {
         var otherObj = other.gameObject.GetComponent<DraggableObject>();
-
+        
         if (otherObj != null && RigidBody2D.velocity.magnitude < wall.MaxVelocity &&
             (CurrentState != ObjectState.Pressed && CurrentState != ObjectState.Transformed)  &&
             (otherObj.CurrentState == ObjectState.Pressed || otherObj.CurrentState == ObjectState.Transformed || otherObj.CurrentState == ObjectState.Launched))
@@ -249,6 +249,7 @@ public class DraggableObject : MonoBehaviour {
         }
     }
 
+    // Collision Exit
     public void OnTriggerExit2D(Collider2D other)
     {
         isTriggered = false;
@@ -304,6 +305,7 @@ public class DraggableObject : MonoBehaviour {
             }
         }
 
+        // Too fast!
         if (RigidBody2D.velocity.magnitude > wall.MaxVelocity)
         {
             var vel = RigidBody2D.velocity;
@@ -321,6 +323,7 @@ public class DraggableObject : MonoBehaviour {
             Image.color = new Color(rgb, rgb, rgb, 1f);
         }
     }
+
 
 
     /*

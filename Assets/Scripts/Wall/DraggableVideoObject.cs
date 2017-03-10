@@ -18,7 +18,7 @@ public class DraggableVideoObject : DraggableImageObject
         StartCoroutine(DoSetVideo(texture));
 	}
 
-    IEnumerator DoSetVideo(MovieTexture texture)
+    private IEnumerator DoSetVideo(MovieTexture texture)
     {
         //We need the video to play before we can get his size
         while (!texture.isPlaying)
@@ -35,20 +35,20 @@ public class DraggableVideoObject : DraggableImageObject
 
         playButton = GetComponentInChildren<Image>();
 
-        var collider = GetComponent<BoxCollider2D>();
+        var boxCollider = GetComponent<BoxCollider2D>();
         var ratioX = (float)texture.width / texture.height;
         var ratioY = (float)texture.height / texture.width;
         if (ratioX > 1)
         {
             var size = new Vector2(RectTransform.sizeDelta.x * ratioX, RectTransform.sizeDelta.y);
             RectTransform.sizeDelta = size;
-            collider.size = size;
+            boxCollider.size = size;
         }
         else
         {
             var size = new Vector2(RectTransform.sizeDelta.x, RectTransform.sizeDelta.y * ratioY);
             RectTransform.sizeDelta = size;
-            collider.size = size;
+            boxCollider.size = size;
         }
     }
 
@@ -65,6 +65,7 @@ public class DraggableVideoObject : DraggableImageObject
 	}
 
 	private void tappedHandler(object sender, EventArgs e){
+        Debug.Log("tap");
 		if (movie.isPlaying) {
             playButton.gameObject.SetActive(true);
             movie.Pause();

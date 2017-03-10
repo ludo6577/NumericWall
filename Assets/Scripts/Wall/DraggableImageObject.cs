@@ -10,7 +10,7 @@ using TouchScript.Utils;
 
 public class DraggableImageObject : DraggableObject
 {
-    public virtual void SetImage(Texture2D sprite, Rect rect)
+    public void SetImage(Texture2D sprite, Rect rect)
     {
         var image = GetComponent<RawImage>();
         image.texture = sprite;
