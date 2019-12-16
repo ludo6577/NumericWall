@@ -324,9 +324,9 @@ public class WallScript : MonoBehaviour
 
                 // Get the video from file
                 WWW www = new WWW("file://" + fileName2);
-                while (!www.isDone || !www.movie.isReadyToPlay)
+                while (!www.isDone || !www.GetMovieTexture().isReadyToPlay)
                     yield return www;
-                ((DraggableVideoObject) obj).SetVideo(www.movie);
+                ((DraggableVideoObject) obj).SetVideo(www.GetMovieTexture());
             }
             else
             {

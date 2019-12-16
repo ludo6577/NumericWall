@@ -44,12 +44,9 @@ namespace TouchScript.Devices.Display
                 switch (Application.platform)
                 {
                     case RuntimePlatform.OSXEditor:
-                    case RuntimePlatform.OSXDashboardPlayer:
                     case RuntimePlatform.OSXPlayer:
-                    case RuntimePlatform.OSXWebPlayer:
                     case RuntimePlatform.WindowsEditor:
                     case RuntimePlatform.WindowsPlayer:
-                    case RuntimePlatform.WindowsWebPlayer:
                     case RuntimePlatform.LinuxPlayer:
                     {
                         var width = Mathf.Max(Screen.currentResolution.width, Screen.currentResolution.height);

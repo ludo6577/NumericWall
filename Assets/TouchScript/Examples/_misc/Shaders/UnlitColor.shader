@@ -1,4 +1,6 @@
-﻿Shader "TouchScript/UnlitColor" {
+﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
+Shader "TouchScript/UnlitColor" {
 Properties {
 	_Color ("Main Color", Color) = (1,1,1,1)
 }
@@ -27,7 +29,7 @@ SubShader {
 			v2f vert (appdata_t v)
 			{
 				v2f o;
-				o.vertex = mul(UNITY_MATRIX_MVP, v.vertex);
+				o.vertex = UnityObjectToClipPos(v.vertex);
 				return o;
 			}
 			
